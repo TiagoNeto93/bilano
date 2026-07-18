@@ -312,7 +312,7 @@ dependencies = [
 
 [[package]]
 name = "chatmix"
-version = "0.1.1"
+version = "1.5.0"
 dependencies = [
  "eframe",
  "global-hotkey",

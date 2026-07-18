@@ -5,8 +5,8 @@ against voice-chat audio. A hand-built alternative to SteelSeries Sonar, without
 the virtual audio driver, the install, or the bloat. Single self-contained
 `.exe` (~3 MB), starts instantly, clean to remove.
 
-Status: **working v1.4**. Personal/SFW tooling. Owner uses it and shares the exe
-with friends.
+Status: **working v1.5**. Personal/SFW tooling. Owner uses it and shares the exe
+with friends. (Cargo `version` is kept aligned with the product/tag version.)
 
 ## What it does & how (the core idea)
 
