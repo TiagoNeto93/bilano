@@ -87,18 +87,19 @@ Toolchain: Rust stable MSVC (installed via winget `Rustlang.Rustup`). `cargo`/`r
 live in `%USERPROFILE%\.cargo\bin` and are often NOT on PATH in tool shells — prepend it.
 
 ```powershell
+# On Windows, cargo/rustc may not be on PATH in non-login shells:
 $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
-$env:CARGO_HTTP_CHECK_REVOKE = "false"   # REQUIRED: this machine has TLS cert interception;
-                                          # without it cargo fails to reach crates.io (schannel
-                                          # CRYPT_E_NO_REVOCATION_CHECK). See global memory.
 cargo build            # debug: keeps a console window (handy for panics)
 cargo build --release  # release: windowless (windows_subsystem="windows"), LTO, ~3 MB
 ```
 
 - `.cargo/config.toml` sets **`crt-static`** so the shipped exe needs no VC++ Redistributable.
-- winget on this machine: pass `--source winget` (the msstore source has a cert mismatch).
+- If cargo can't reach crates.io with a schannel revocation error
+  (`CRYPT_E_NO_REVOCATION_CHECK`) — common behind TLS-inspecting proxies/AV — set
+  `CARGO_HTTP_CHECK_REVOKE=false` for the build.
+- If installing the toolchain via winget and the msstore source errors, pass `--source winget`.
 - Release LTO build + antivirus scan can be slow; if a build command "times out" it
-  usually finished — check the task output; the hang is typically AV scanning the new exe.
+  usually finished — check the output; the hang is typically AV scanning the new exe.
 
 ## Running / packaging / sharing
 
@@ -109,10 +110,10 @@ Start-Process .\target\release\chatmix.exe
 ```
 
 Distribution lives in `dist/`: `chatmix.exe` + `README.txt`, zipped as
-`ChatMix-vX.Y-win64.zip`. Sharing = send the zip; friend does More info → Run anyway
-on SmartScreen (unsigned). **Antivirus (Norton here) may block/quarantine the unsigned
-exe on first run** — whitelist the folder/exe. This looked like "won't launch / weird
-leftover 1-thread process" during dev until the folder was added to Norton exceptions.
+`ChatMix-vX.Y-win64.zip`. Sharing = send the zip; the user does More info → Run anyway
+on SmartScreen (unsigned). **Antivirus (e.g. Norton) may block/quarantine the unsigned
+exe on first run** — whitelist the folder/exe. When blocked, it can look like "won't
+launch / weird leftover 1-thread process" rather than an outright error.
 
 ## Testing tips (no human clicks needed for most of it)
 
