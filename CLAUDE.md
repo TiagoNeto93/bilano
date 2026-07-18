@@ -115,6 +115,20 @@ on SmartScreen (unsigned). **Antivirus (e.g. Norton) may block/quarantine the un
 exe on first run** — whitelist the folder/exe. When blocked, it can look like "won't
 launch / weird leftover 1-thread process" rather than an outright error.
 
+## Tests & CI
+
+`cargo test` covers the **pure logic** (the part where automated tests pay off):
+the mix→gain math (`level()` + `taper()` curve: endpoints, monotonicity, dB
+midpoint), `basename()` extraction, and config defaults/`chat_set`/JSON round-trip.
+Tests live in `#[cfg(test)]` modules in `audio.rs` and `config.rs`.
+
+Deliberately **not** unit-tested: the eframe UI, Core Audio session control, and the
+tray/hotkey/window behavior — they need a real desktop + audio sessions and are best
+verified by running the app (every real bug we hit was found that way, see below).
+
+CI: `.github/workflows/ci.yml` runs build+test+clippy on push to `main` and on PRs.
+`release.yml` also runs `cargo test` before building, so a broken tag never publishes.
+
 ## Testing tips (no human clicks needed for most of it)
 
 - Single-instance / show path: launch twice → exactly 1 process, no message box.
