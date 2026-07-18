@@ -54,3 +54,43 @@ impl Config {
         self.chat.iter().map(|s| s.to_lowercase()).collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_is_centered_with_discord() {
+        let c = Config::default();
+        assert_eq!(c.mix, 0.0);
+        assert!(!c.autostart);
+        assert!(c.chat.iter().any(|x| x == "discord.exe"));
+    }
+
+    #[test]
+    fn chat_set_lowercases_and_dedups() {
+        let c = Config {
+            chat: vec!["Discord.EXE".into(), "discord.exe".into(), "Steam.exe".into()],
+            mix: 0.0,
+            autostart: false,
+        };
+        let s = c.chat_set();
+        assert!(s.contains("discord.exe"));
+        assert!(s.contains("steam.exe"));
+        assert_eq!(s.len(), 2, "case-insensitive duplicates should collapse");
+    }
+
+    #[test]
+    fn json_round_trips() {
+        let c = Config {
+            chat: vec!["discord.exe".into(), "vencord.exe".into()],
+            mix: -0.3,
+            autostart: true,
+        };
+        let json = serde_json::to_string(&c).unwrap();
+        let back: Config = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.chat, c.chat);
+        assert!((back.mix - c.mix).abs() < 1e-6);
+        assert_eq!(back.autostart, c.autostart);
+    }
+}

@@ -19,6 +19,9 @@ jobs:
       - name: Ensure Rust stable (MSVC)
         run: rustup toolchain install stable --profile minimal --no-self-update
 
+      - name: Test
+        run: cargo test --locked
+
       - name: Build release
         run: cargo build --release --locked
 

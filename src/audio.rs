@@ -237,5 +237,95 @@ unsafe fn process_exe(pid: u32) -> Option<String> {
     let _ = CloseHandle(handle);
     ok.ok()?;
     let full = String::from_utf16_lossy(&buf[..len as usize]);
-    Some(full.rsplit(['\\', '/']).next().unwrap_or(&full).to_string())
+    Some(basename(&full).to_string())
+}
+
+/// Last path component (executable file name) of a Windows or Unix-style path.
+fn basename(path: &str) -> &str {
+    path.rsplit(['\\', '/']).next().unwrap_or(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    fn cfg(mix: f32) -> Cfg {
+        Cfg {
+            chat: HashSet::new(),
+            mix,
+        }
+    }
+
+    #[test]
+    fn center_keeps_both_full() {
+        let c = cfg(0.0);
+        assert_eq!(c.level(Group::Game), 1.0);
+        assert_eq!(c.level(Group::Chat), 1.0);
+    }
+
+    #[test]
+    fn full_game_mutes_chat_keeps_game() {
+        let c = cfg(1.0);
+        assert_eq!(c.level(Group::Game), 1.0);
+        assert_eq!(c.level(Group::Chat), 0.0);
+    }
+
+    #[test]
+    fn full_chat_mutes_game_keeps_chat() {
+        let c = cfg(-1.0);
+        assert_eq!(c.level(Group::Game), 0.0);
+        assert_eq!(c.level(Group::Chat), 1.0);
+    }
+
+    #[test]
+    fn half_toward_game_halves_chat_only() {
+        let c = cfg(0.5);
+        assert_eq!(c.level(Group::Game), 1.0);
+        assert_eq!(c.level(Group::Chat), 0.5);
+    }
+
+    #[test]
+    fn levels_stay_in_range() {
+        for &m in &[-1.0, -0.3, 0.0, 0.25, 1.0] {
+            let c = cfg(m);
+            for g in [Group::Game, Group::Chat] {
+                let l = c.level(g);
+                assert!((0.0..=1.0).contains(&l), "level {} out of range at mix {}", l, m);
+            }
+        }
+    }
+
+    #[test]
+    fn taper_endpoints_and_floor() {
+        assert_eq!(taper(1.0), 1.0);
+        assert_eq!(taper(0.0), 0.0);
+        assert_eq!(taper(0.0005), 0.0); // below the mute floor
+    }
+
+    #[test]
+    fn taper_is_monotonic_increasing() {
+        let mut prev = -1.0f32;
+        let mut x = 0.0f32;
+        while x <= 1.0 {
+            let g = taper(x);
+            assert!(g >= prev, "taper not monotonic at {} ({} < {})", x, g, prev);
+            prev = g;
+            x += 0.05;
+        }
+    }
+
+    #[test]
+    fn taper_midpoint_matches_db_formula() {
+        let expected = 10f32.powf(MIN_DB * 0.5 / 20.0);
+        assert!((taper(0.5) - expected).abs() < 1e-6);
+    }
+
+    #[test]
+    fn basename_extracts_exe_name() {
+        assert_eq!(basename(r"C:\Program Files\Discord\Discord.exe"), "Discord.exe");
+        assert_eq!(basename("/usr/bin/foo"), "foo");
+        assert_eq!(basename("bare.exe"), "bare.exe");
+        assert_eq!(basename(""), "");
+    }
 }
