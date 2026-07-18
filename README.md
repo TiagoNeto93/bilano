@@ -59,8 +59,7 @@ notes and build gotchas.
 ## Roadmap
 
 - [x] Per-app volume + mute (v1.6)
-- [ ] Group/section the app list by Chat vs Game (with live re-grouping)
-- [ ] Roomier app list; compact "Add app" / "Start with Windows"; user-resizable layout
+- [x] Chat/Game sections with live re-grouping; resizable window; compact footer; start-in-tray autostart (v1.7)
 - [ ] MIDI / hardware-knob binding for a physical dial
 
 ## License

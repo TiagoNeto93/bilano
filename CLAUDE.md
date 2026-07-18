@@ -5,7 +5,7 @@ against voice-chat audio. A hand-built alternative to SteelSeries Sonar, without
 the virtual audio driver, the install, or the bloat. Single self-contained
 `.exe` (~3 MB), starts instantly, clean to remove.
 
-Status: **working v1.6**. Personal/SFW tooling. Owner uses it and shares the exe
+Status: **working v1.7**. Personal/SFW tooling. Owner uses it and shares the exe
 with friends. (Cargo `version` is kept aligned with the product/tag version.)
 
 ## What it does & how (the core idea)
@@ -160,6 +160,16 @@ CI: `.github/workflows/ci.yml` runs build+test+clippy on push to `main` and on P
   lightweight over "true separate buses."
 - Per-app control (v1.6): decided **cut-only trim** (rides the dial, can't exceed group)
   over override/pin/absolute models — keeps the dial as master. Two-line rows.
+- UI (v1.7): app list **sectioned by Chat/Game** (group toggled by clicking the row's
+  chip; re-derived each frame so re-tagging moves an app and keeps its trim/mute).
+  `TopBottomPanel::bottom` footer (Add app / Startup / Hide / Quit) so the central
+  `ScrollArea` (auto_shrink false) fills a **resizable** window.
+- Autostart (v1.7): the HKCU Run entry launches `chatmix.exe --tray`. **Gotcha:** eframe
+  force-shows the window in `post_rendering` after the first painted frame (see
+  `epi_integration.rs`), so `with_visible(false)` can't keep it hidden — instead we
+  `tray::hide_window()` (Win32 SW_HIDE) over the first few frames (`hide_ticks`,
+  spinning `request_repaint`) to send it to the tray with minimal flash. The Run value
+  stores the exe's path at toggle-time, so moving the exe breaks autostart until re-toggled.
 - Done: private GitHub repo `TiagoNeto93/chatmix` + Releases + CI (build/test/clippy on
   push, auto-build+publish on `vX.Y.Z` tag). Unit tests cover the pure logic.
 - Parked for later (**v1.7 ideas from the owner**):

@@ -37,10 +37,15 @@ fn main() -> eframe::Result<()> {
     tx.send(Cmd::Apply).ok(); // apply saved settings immediately
     tray::spawn(tx.clone(), cfg.clone(), shared.clone(), quit_flag.clone());
 
+    // Launched by the autostart entry (`chatmix.exe --tray`) -> start hidden in
+    // the tray instead of popping the window on every login.
+    let start_hidden = std::env::args().any(|a| a == "--tray");
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([384.0, 580.0])
-            .with_min_inner_size([360.0, 480.0])
+            .with_inner_size([384.0, 640.0])
+            .with_min_inner_size([340.0, 460.0])
+            .with_resizable(true)
             .with_title("ChatMix")
             .with_icon(Arc::new(egui::IconData {
                 rgba: icon::rgba(64),
@@ -52,7 +57,7 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "ChatMix",
         options,
-        Box::new(move |cc| Ok(Box::new(App::new(cc, tx, shared, cfg, quit_flag)))),
+        Box::new(move |cc| Ok(Box::new(App::new(cc, tx, shared, cfg, quit_flag, start_hidden)))),
     )
 }
 
@@ -63,6 +68,7 @@ struct App {
     quit_flag: Arc<AtomicBool>,
     icon_tex: egui::TextureHandle,
     new_app: String,
+    hide_ticks: u8,
 }
 
 impl App {
@@ -72,6 +78,7 @@ impl App {
         shared: Arc<Shared>,
         cfg: Arc<Mutex<Config>>,
         quit_flag: Arc<AtomicBool>,
+        start_hidden: bool,
     ) -> Self {
         load_fonts(&cc.egui_ctx);
         setup_style(&cc.egui_ctx);
@@ -87,6 +94,9 @@ impl App {
             quit_flag,
             icon_tex,
             new_app: String::new(),
+            // eframe shows the window after the first painted frame, so we hide
+            // over the next few frames (spinning fast) to send it to the tray.
+            hide_ticks: if start_hidden { 3 } else { 0 },
         }
     }
 
@@ -104,10 +114,6 @@ impl App {
             c.save();
         }
         self.apply();
-    }
-
-    fn is_chat(&self, exe: &str) -> bool {
-        self.cfg.lock().map(|c| c.is_chat(exe)).unwrap_or(false)
     }
 
     fn trim_of(&self, exe: &str) -> f32 {
@@ -169,6 +175,40 @@ impl App {
         }
         map.into_iter().collect()
     }
+
+    /// Render one group section: a header + its app rows (or an empty hint).
+    fn section(&self, ui: &mut egui::Ui, title: &str, color: Color32, is_chat: bool, rows: &[(String, bool)]) {
+        ui.horizontal(|ui| {
+            ui.label(RichText::new(title).size(11.0).strong().color(color));
+            ui.label(RichText::new(format!("· {}", rows.len())).size(11.0).color(Color32::from_gray(110)));
+        });
+        ui.add_space(3.0);
+        if rows.is_empty() {
+            ui.label(
+                RichText::new("   — none —")
+                    .size(11.0)
+                    .italics()
+                    .color(Color32::from_gray(95)),
+            );
+        } else {
+            for (exe, active) in rows {
+                let trim = self.trim_of(exe);
+                let muted = self.is_muted(exe);
+                let act = app_row(ui, exe, *active, is_chat, trim, muted);
+                if let Some(c) = act.chat {
+                    self.set_chat(exe, c);
+                }
+                if let Some(t) = act.trim {
+                    self.set_trim(exe, t);
+                }
+                if let Some(m) = act.mute {
+                    self.set_mute(exe, m);
+                }
+                ui.add_space(5.0);
+            }
+        }
+        ui.add_space(10.0);
+    }
 }
 
 impl eframe::App for App {
@@ -179,13 +219,72 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint_after(std::time::Duration::from_millis(100));
 
+        // Autostarted with --tray: eframe force-shows the window after the first
+        // painted frame, so hide it over the next few (fast) frames into the tray.
+        if self.hide_ticks > 0 {
+            self.hide_ticks -= 1;
+            tray::hide_window();
+            ctx.request_repaint(); // spin quickly so the flash is minimal
+        }
+
         if ctx.input(|i| i.viewport().close_requested()) {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             tray::hide_window();
         }
 
+        // Partition detected apps into the two groups. Re-derived each frame, so
+        // re-tagging an app moves it between sections while keeping its trim/mute.
+        let rows = self.rows();
+        let chat_set = self.cfg.lock().map(|c| c.chat_set()).unwrap_or_default();
+        let (chat_rows, game_rows): (Vec<_>, Vec<_>) =
+            rows.into_iter().partition(|(exe, _)| chat_set.contains(exe));
+
+        // ---- Compact footer, pinned to the bottom (so the app list fills the rest) ----
+        egui::TopBottomPanel::bottom("footer")
+            .frame(
+                egui::Frame::none()
+                    .fill(Color32::from_rgb(22, 23, 26))
+                    .inner_margin(egui::Margin::symmetric(16.0, 9.0)),
+            )
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Add app").size(11.0).color(Color32::from_gray(150)));
+                    let resp = ui.add(
+                        egui::TextEdit::singleline(&mut self.new_app)
+                            .desired_width(150.0)
+                            .hint_text("app.exe"),
+                    );
+                    let submit = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                    if ui.button("+ Chat").clicked() || submit {
+                        let mut name = self.new_app.trim().to_lowercase();
+                        if !name.is_empty() {
+                            if !name.ends_with(".exe") {
+                                name.push_str(".exe");
+                            }
+                            self.set_chat(&name, true);
+                            self.new_app.clear();
+                        }
+                    }
+                });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    let mut autostart = self.autostart();
+                    if ui.checkbox(&mut autostart, "Start with Windows").changed() {
+                        self.set_autostart(autostart);
+                    }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("Quit").clicked() {
+                            self.quit_flag.store(true, Ordering::SeqCst);
+                        }
+                        if ui.button("Hide").clicked() {
+                            tray::hide_window();
+                        }
+                    });
+                });
+            });
+
         egui::CentralPanel::default()
-            .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(16.0_f32))
+            .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(egui::Margin::symmetric(16.0, 12.0)))
             .show(ctx, |ui| {
                 // ---- Header ----
                 ui.horizontal(|ui| {
@@ -247,76 +346,21 @@ impl eframe::App for App {
                     );
                 });
 
-                ui.add_space(12.0);
-                ui.label(RichText::new("APPS").size(11.0).color(Color32::from_gray(130)).strong());
+                ui.add_space(10.0);
                 ui.label(
-                    RichText::new("checkbox = voice chat · slider = per-app volume · M = mute")
-                        .size(11.0)
-                        .color(Color32::from_gray(120)),
+                    RichText::new("slider = per-app volume · M = mute · click a chip to switch group")
+                        .size(10.0)
+                        .color(Color32::from_gray(115)),
                 );
-                ui.add_space(4.0);
+                ui.add_space(8.0);
 
-                let rows = self.rows();
+                // Sectioned, fills the remaining (resizable) height.
                 egui::ScrollArea::vertical()
-                    .max_height(210.0)
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
-                        for (exe, active) in &rows {
-                            let is_chat = self.is_chat(exe);
-                            let trim = self.trim_of(exe);
-                            let muted = self.is_muted(exe);
-                            let act = app_row(ui, exe, *active, is_chat, trim, muted);
-                            if let Some(c) = act.chat {
-                                self.set_chat(exe, c);
-                            }
-                            if let Some(t) = act.trim {
-                                self.set_trim(exe, t);
-                            }
-                            if let Some(m) = act.mute {
-                                self.set_mute(exe, m);
-                            }
-                            ui.add_space(4.0);
-                        }
+                        self.section(ui, "CHAT", BLUE, true, &chat_rows);
+                        self.section(ui, "GAME", GREEN, false, &game_rows);
                     });
-
-                ui.add_space(10.0);
-                ui.horizontal(|ui| {
-                    ui.label(RichText::new("Add:").size(12.0).color(Color32::from_gray(150)));
-                    let resp = ui.add(
-                        egui::TextEdit::singleline(&mut self.new_app)
-                            .desired_width(150.0)
-                            .hint_text("app.exe"),
-                    );
-                    let submit = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                    if ui.button("+ Chat").clicked() || submit {
-                        let mut name = self.new_app.trim().to_lowercase();
-                        if !name.is_empty() {
-                            if !name.ends_with(".exe") {
-                                name.push_str(".exe");
-                            }
-                            self.set_chat(&name, true);
-                            self.new_app.clear();
-                        }
-                    }
-                });
-
-                ui.add_space(8.0);
-                ui.separator();
-                ui.add_space(4.0);
-                ui.horizontal(|ui| {
-                    let mut autostart = self.autostart();
-                    if ui.checkbox(&mut autostart, "Start with Windows").changed() {
-                        self.set_autostart(autostart);
-                    }
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button("Quit").clicked() {
-                            self.quit_flag.store(true, Ordering::SeqCst);
-                        }
-                        if ui.button("Hide").clicked() {
-                            tray::hide_window();
-                        }
-                    });
-                });
             });
     }
 }
@@ -328,7 +372,7 @@ struct RowAction {
     mute: Option<bool>,
 }
 
-/// Two-line app row: [chat] name [chip] / [M] volume-slider %.
+/// Two-line app row: dot name [group-chip] / [M] volume-slider %.
 fn app_row(ui: &mut egui::Ui, exe: &str, active: bool, is_chat: bool, trim: f32, muted: bool) -> RowAction {
     let mut act = RowAction::default();
     egui::Frame::none()
@@ -336,22 +380,26 @@ fn app_row(ui: &mut egui::Ui, exe: &str, active: bool, is_chat: bool, trim: f32,
         .rounding(7.0_f32)
         .inner_margin(egui::Margin::symmetric(9.0, 6.0))
         .show(ui, |ui| {
-            // Line 1: chat checkbox, status dot, name, group chip.
+            // Line 1: status dot, name, clickable group chip (click to switch group).
             ui.horizontal(|ui| {
-                let mut chat = is_chat;
-                if ui.checkbox(&mut chat, "").changed() {
-                    act.chat = Some(chat);
-                }
                 let dot_col = if active { GREEN } else { Color32::from_gray(80) };
                 ui.label(RichText::new("●").size(9.0).color(dot_col));
                 ui.label(RichText::new(exe).size(13.0));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let (bg, fg, t) = if is_chat {
-                        (BLUE, Color32::WHITE, "CHAT")
+                    let (bg, fg, label, other) = if is_chat {
+                        (BLUE, Color32::WHITE, "CHAT", "Game")
                     } else {
-                        (Color32::from_gray(55), Color32::from_gray(190), "GAME")
+                        (Color32::from_gray(60), Color32::from_gray(200), "GAME", "Chat")
                     };
-                    ui.label(RichText::new(t).size(10.0).strong().color(fg).background_color(bg));
+                    let chip = ui.add(
+                        egui::Button::new(RichText::new(label).size(10.0).strong().color(fg))
+                            .fill(bg)
+                            .min_size(vec2(46.0, 18.0)),
+                    );
+                    if chip.clicked() {
+                        act.chat = Some(!is_chat);
+                    }
+                    chip.on_hover_text(format!("Move to {}", other));
                 });
             });
 
@@ -538,7 +586,9 @@ fn set_autostart_reg(on: bool) {
     let key = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
     let mut cmd = std::process::Command::new("reg");
     if on {
-        cmd.args(["add", key, "/v", "ChatMix", "/t", "REG_SZ", "/d", &exe, "/f"]);
+        // Quote the path (may contain spaces) and pass --tray so login starts hidden.
+        let value = format!("\"{}\" --tray", exe);
+        cmd.args(["add", key, "/v", "ChatMix", "/t", "REG_SZ", "/d", &value, "/f"]);
     } else {
         cmd.args(["delete", key, "/v", "ChatMix", "/f"]);
     }
