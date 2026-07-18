@@ -1,0 +1,13 @@
+# Rust build output
+/target
+
+# Release artifacts are attached to GitHub Releases, not committed
+/dist/*.exe
+/dist/*.zip
+
+# Editor / OS cruft
+*.pdb
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
