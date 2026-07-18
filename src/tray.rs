@@ -209,36 +209,22 @@ fn rebuild(tray: &TrayIcon, shared: &Arc<Shared>, cfg: &Arc<Mutex<Config>>) -> M
 }
 
 fn toggle_chat(cfg: &Arc<Mutex<Config>>, tx: &Sender<Cmd>, exe: &str) {
-    let set = {
-        let mut c = match cfg.lock() {
-            Ok(c) => c,
-            Err(_) => return,
-        };
-        let el = exe.to_lowercase();
-        if c.chat.iter().any(|x| x.eq_ignore_ascii_case(&el)) {
-            c.chat.retain(|x| !x.eq_ignore_ascii_case(&el));
-        } else {
-            c.chat.push(el);
-        }
+    if let Ok(mut c) = cfg.lock() {
+        let on = !c.is_chat(exe);
+        c.set_chat(exe, on);
         c.save();
-        c.chat_set()
-    };
-    tx.send(Cmd::SetChat(set)).ok();
+    }
+    tx.send(Cmd::Apply).ok();
 }
 
 /// `Some(delta)` nudges the mix; `None` re-centers.
 fn adjust_mix(cfg: &Arc<Mutex<Config>>, tx: &Sender<Cmd>, delta: Option<f32>) {
-    let mix = {
-        let mut c = match cfg.lock() {
-            Ok(c) => c,
-            Err(_) => return,
-        };
+    if let Ok(mut c) = cfg.lock() {
         c.mix = match delta {
             Some(d) => (c.mix + d).clamp(-1.0, 1.0),
             None => 0.0,
         };
         c.save();
-        c.mix
-    };
-    tx.send(Cmd::SetMix(mix)).ok();
+    }
+    tx.send(Cmd::Apply).ok();
 }

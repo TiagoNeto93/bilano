@@ -5,19 +5,29 @@ against voice-chat audio. A hand-built alternative to SteelSeries Sonar, without
 the virtual audio driver, the install, or the bloat. Single self-contained
 `.exe` (~3 MB), starts instantly, clean to remove.
 
-Status: **working v1.5**. Personal/SFW tooling. Owner uses it and shares the exe
+Status: **working v1.6**. Personal/SFW tooling. Owner uses it and shares the exe
 with friends. (Cargo `version` is kept aligned with the product/tag version.)
 
 ## What it does & how (the core idea)
 
 Windows exposes a per-application volume for every audio *session* via Core Audio
-(`ISimpleAudioVolume`). We don't need a virtual driver — we just **duck** volumes:
+(`ISimpleAudioVolume`). We don't need a virtual driver — we just **duck** volumes.
+
+The full per-app gain chain (in `audio.rs::effective`):
+
+```
+app volume = taper(group_level(mix, group)) × per-app-trim × (muted ? 0 : 1)
+```
 
 - The user tags some apps as **Chat** (e.g. `discord.exe`); everything else is **Game**.
 - One `mix` value in `[-1.0, +1.0]`: `-1` = all Chat, `+1` = all Game, `0` = both full.
-- Moving toward Game attenuates the Chat sessions (and vice-versa). At center both are full.
-- The fade is **logarithmic (dB-linear)**, floor `MIN_DB = -40 dB` in `audio.rs`, so
-  equal dial movement = equal perceived-loudness change (smooth, not "sudden drop at the end").
+  Moving toward Game attenuates the Chat group (and vice-versa).
+- The fade is **logarithmic (dB-linear)**, floor `MIN_DB = -40 dB`, so equal dial
+  movement = equal perceived-loudness change (smooth, not "sudden drop at the end").
+- **Per-app trim** (v1.6): a linear `[0,1]` multiplier per app, default 1.0. It's
+  **cut-only** — an app rides *under* its group level, never above it (Windows session
+  volume can't amplify above an app's own 100% anyway). **Mute** forces 0 without
+  losing the trim. Verified end-to-end (mute→0, trim scales, rides the dial).
 - On quit the engine restores every app to full volume.
 
 Trade-off vs. Sonar: this is ducking (it moves the apps' real Volume-Mixer levels),
@@ -40,8 +50,10 @@ Threads (all long-lived; process exits via `process::exit` from the tray thread)
   nothing to draw). Hides on window-close via `CancelClose` + Win32 `SW_HIDE`
   (NOT `ViewportCommand::Visible(false)`, which desyncs from our Win32 show/hide).
 - **Audio engine thread** — `audio.rs`. Owns COM (`CoInitializeEx` MULTITHREADED),
-  enumerates sessions, applies the mix. Driven by a `Sender<Cmd>` channel
-  (`SetMix`, `SetChat`, `Quit`). Re-applies every ~1s to catch newly-started apps.
+  enumerates sessions, applies the gain chain. Reads the shared `Arc<Mutex<Config>>`;
+  driven by a tiny `Sender<Cmd>` wake channel (`Apply` = re-read config & apply now,
+  `Quit` = restore full & stop). UI/tray/hotkeys mutate the config then send `Apply`.
+  Re-applies every ~1s anyway to catch newly-started apps.
 - **Tray/hotkey thread** — `tray.rs`. Owns the `TrayIcon` + `GlobalHotKeyManager`
   and runs its own Win32 `PeekMessageW`/`DispatchMessageW` loop, so it works
   regardless of window state. Handles: left-click → show; right-click → menu
@@ -118,9 +130,10 @@ launch / weird leftover 1-thread process" rather than an outright error.
 ## Tests & CI
 
 `cargo test` covers the **pure logic** (the part where automated tests pay off):
-the mix→gain math (`level()` + `taper()` curve: endpoints, monotonicity, dB
-midpoint), `basename()` extraction, and config defaults/`chat_set`/JSON round-trip.
-Tests live in `#[cfg(test)]` modules in `audio.rs` and `config.rs`.
+the gain chain (`group_level` + `taper` curve, and `effective` = mute→0, trim scales
+linearly, cut-only can't exceed group, trim=1 matches dial-only), `basename`
+extraction, and config defaults / `volume_of` / `is_muted` / JSON round-trip /
+**old-format migration**. Tests live in `#[cfg(test)]` modules in `audio.rs` and `config.rs`.
 
 Deliberately **not** unit-tested: the eframe UI, Core Audio session control, and the
 tray/hotkey/window behavior — they need a real desktop + audio sessions and are best
@@ -145,6 +158,14 @@ CI: `.github/workflows/ci.yml` runs build+test+clippy on push to `main` and on P
 
 - Chosen: session-volume ducking (no driver) + Rust/windows-rs + eframe. Deliberately
   lightweight over "true separate buses."
-- Parked for later: **MIDI / hardware-knob binding** for a physical dial;
-  **GitHub Releases** page (repo + `.gitignore` + CI build) for nicer sharing than a raw zip.
+- Per-app control (v1.6): decided **cut-only trim** (rides the dial, can't exceed group)
+  over override/pin/absolute models — keeps the dial as master. Two-line rows.
+- Done: private GitHub repo `TiagoNeto93/chatmix` + Releases + CI (build/test/clippy on
+  push, auto-build+publish on `vX.Y.Z` tag). Unit tests cover the pure logic.
+- Parked for later (**v1.7 ideas from the owner**):
+  - Group/section the app list by **Chat vs Game** (or sort by group) — must handle an
+    app being re-tagged live (moves between sections without losing its trim/mute).
+  - Roomier app list; make **"Add app"** and **"Start with Windows"** more compact.
+  - **User-resizable** window / layout to taste.
+  - **MIDI / hardware-knob binding** for a physical dial.
 - If asked to make the fade more/less aggressive, tune `MIN_DB` in `audio.rs`.

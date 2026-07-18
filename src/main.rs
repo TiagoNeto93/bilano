@@ -6,6 +6,7 @@ mod icon;
 mod single;
 mod tray;
 
+use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
@@ -19,33 +20,27 @@ use config::Config;
 
 const BLUE: Color32 = Color32::from_rgb(74, 137, 255);
 const GREEN: Color32 = Color32::from_rgb(52, 205, 130);
+const RED: Color32 = Color32::from_rgb(196, 66, 66);
 const STEP: f32 = 0.1;
 
 fn main() -> eframe::Result<()> {
-    // Single instance: a second launch surfaces the running window and exits.
     let _instance = match single::acquire() {
         Some(i) => i,
         None => return Ok(()),
     };
 
-    // Shared state across the UI, engine, and tray/hotkey threads.
     let cfg = Arc::new(Mutex::new(Config::load()));
     let shared = Shared::new();
-    let tx = audio::spawn(shared.clone());
+    let tx = audio::spawn(shared.clone(), cfg.clone());
     let quit_flag = Arc::new(AtomicBool::new(false));
 
-    {
-        let c = cfg.lock().unwrap();
-        tx.send(Cmd::SetChat(c.chat_set())).ok();
-        tx.send(Cmd::SetMix(c.mix)).ok();
-    }
-
+    tx.send(Cmd::Apply).ok(); // apply saved settings immediately
     tray::spawn(tx.clone(), cfg.clone(), shared.clone(), quit_flag.clone());
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([360.0, 540.0])
-            .with_min_inner_size([330.0, 460.0])
+            .with_inner_size([384.0, 580.0])
+            .with_min_inner_size([360.0, 480.0])
             .with_title("ChatMix")
             .with_icon(Arc::new(egui::IconData {
                 rgba: icon::rgba(64),
@@ -95,45 +90,56 @@ impl App {
         }
     }
 
+    fn apply(&self) {
+        self.tx.send(Cmd::Apply).ok();
+    }
+
     fn mix(&self) -> f32 {
         self.cfg.lock().map(|c| c.mix).unwrap_or(0.0)
     }
 
     fn set_mix(&self, mix: f32) {
-        let mix = mix.clamp(-1.0, 1.0);
         if let Ok(mut c) = self.cfg.lock() {
-            c.mix = mix;
+            c.mix = mix.clamp(-1.0, 1.0);
             c.save();
         }
-        self.tx.send(Cmd::SetMix(mix)).ok();
+        self.apply();
     }
 
     fn is_chat(&self, exe: &str) -> bool {
-        self.cfg
-            .lock()
-            .map(|c| c.chat.iter().any(|x| x.eq_ignore_ascii_case(exe)))
-            .unwrap_or(false)
+        self.cfg.lock().map(|c| c.is_chat(exe)).unwrap_or(false)
+    }
+
+    fn trim_of(&self, exe: &str) -> f32 {
+        self.cfg.lock().map(|c| c.volume_of(exe)).unwrap_or(1.0)
+    }
+
+    fn is_muted(&self, exe: &str) -> bool {
+        self.cfg.lock().map(|c| c.is_muted(exe)).unwrap_or(false)
     }
 
     fn set_chat(&self, exe: &str, on: bool) {
-        let set = {
-            let mut c = match self.cfg.lock() {
-                Ok(c) => c,
-                Err(_) => return,
-            };
-            let el = exe.to_lowercase();
-            let has = c.chat.iter().any(|x| x.eq_ignore_ascii_case(&el));
-            if on && !has {
-                c.chat.push(el);
-            } else if !on && has {
-                c.chat.retain(|x| !x.eq_ignore_ascii_case(&el));
-            } else {
-                return;
-            }
+        if let Ok(mut c) = self.cfg.lock() {
+            c.set_chat(exe, on);
             c.save();
-            c.chat_set()
-        };
-        self.tx.send(Cmd::SetChat(set)).ok();
+        }
+        self.apply();
+    }
+
+    fn set_trim(&self, exe: &str, v: f32) {
+        if let Ok(mut c) = self.cfg.lock() {
+            c.set_volume(exe, v);
+            c.save();
+        }
+        self.apply();
+    }
+
+    fn set_mute(&self, exe: &str, on: bool) {
+        if let Ok(mut c) = self.cfg.lock() {
+            c.set_muted(exe, on);
+            c.save();
+        }
+        self.apply();
     }
 
     fn autostart(&self) -> bool {
@@ -148,20 +154,20 @@ impl App {
         set_autostart_reg(on);
     }
 
-    /// (exe, active, level) rows: live apps merged with configured chat apps.
-    fn rows(&self) -> Vec<(String, bool, f32)> {
-        let live = self.shared.apps.lock().map(|g| g.clone()).unwrap_or_default();
-        let mut rows: Vec<(String, bool, f32)> =
-            live.iter().map(|a| (a.exe.clone(), a.active, a.vol)).collect();
-        if let Ok(c) = self.cfg.lock() {
-            for exe in &c.chat {
-                if !rows.iter().any(|(e, _, _)| e.eq_ignore_ascii_case(exe)) {
-                    rows.push((exe.clone(), false, 0.0));
-                }
+    /// (exe, active) rows: live apps merged with any app that has saved settings.
+    fn rows(&self) -> Vec<(String, bool)> {
+        let mut map: BTreeMap<String, bool> = BTreeMap::new();
+        if let Ok(live) = self.shared.apps.lock() {
+            for a in live.iter() {
+                map.insert(a.exe.clone(), a.active);
             }
         }
-        rows.sort_by(|a, b| a.0.cmp(&b.0));
-        rows
+        if let Ok(c) = self.cfg.lock() {
+            for exe in c.known_apps() {
+                map.entry(exe).or_insert(false);
+            }
+        }
+        map.into_iter().collect()
     }
 }
 
@@ -173,7 +179,6 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint_after(std::time::Duration::from_millis(100));
 
-        // Close button hides to tray instead of quitting.
         if ctx.input(|i| i.viewport().close_requested()) {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             tray::hide_window();
@@ -184,10 +189,7 @@ impl eframe::App for App {
             .show(ctx, |ui| {
                 // ---- Header ----
                 ui.horizontal(|ui| {
-                    ui.image(egui::load::SizedTexture::new(
-                        self.icon_tex.id(),
-                        vec2(36.0, 36.0),
-                    ));
+                    ui.image(egui::load::SizedTexture::new(self.icon_tex.id(), vec2(36.0, 36.0)));
                     ui.add_space(4.0);
                     ui.vertical(|ui| {
                         ui.label(RichText::new("ChatMix").size(21.0).strong());
@@ -202,8 +204,6 @@ impl eframe::App for App {
                 ui.add_space(14.0);
 
                 let mut mix = self.mix();
-
-                // ---- Balance readout ----
                 let pct = (mix * 100.0).round() as i32;
                 let (txt, col) = if pct == 0 {
                     ("Balanced".to_string(), Color32::from_gray(200))
@@ -212,12 +212,9 @@ impl eframe::App for App {
                 } else {
                     (format!("Chat  ←  {}%", -pct), BLUE)
                 };
-                ui.vertical_centered(|ui| {
-                    ui.label(RichText::new(txt).size(16.0).strong().color(col));
-                });
+                ui.vertical_centered(|ui| ui.label(RichText::new(txt).size(16.0).strong().color(col)));
                 ui.add_space(6.0);
 
-                // ---- Balance slider ----
                 if balance_slider(ui, &mut mix).changed() {
                     self.set_mix(mix);
                 }
@@ -253,7 +250,7 @@ impl eframe::App for App {
                 ui.add_space(12.0);
                 ui.label(RichText::new("APPS").size(11.0).color(Color32::from_gray(130)).strong());
                 ui.label(
-                    RichText::new("tick the ones that are voice chat")
+                    RichText::new("checkbox = voice chat · slider = per-app volume · M = mute")
                         .size(11.0)
                         .color(Color32::from_gray(120)),
                 );
@@ -261,13 +258,22 @@ impl eframe::App for App {
 
                 let rows = self.rows();
                 egui::ScrollArea::vertical()
-                    .max_height(180.0)
+                    .max_height(210.0)
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
-                        for (exe, active, level) in &rows {
-                            let chat = self.is_chat(exe);
-                            if let Some(on) = app_row(ui, exe, *active, *level, chat) {
-                                self.set_chat(exe, on);
+                        for (exe, active) in &rows {
+                            let is_chat = self.is_chat(exe);
+                            let trim = self.trim_of(exe);
+                            let muted = self.is_muted(exe);
+                            let act = app_row(ui, exe, *active, is_chat, trim, muted);
+                            if let Some(c) = act.chat {
+                                self.set_chat(exe, c);
+                            }
+                            if let Some(t) = act.trim {
+                                self.set_trim(exe, t);
+                            }
+                            if let Some(m) = act.mute {
+                                self.set_mute(exe, m);
                             }
                             ui.add_space(4.0);
                         }
@@ -278,7 +284,7 @@ impl eframe::App for App {
                     ui.label(RichText::new("Add:").size(12.0).color(Color32::from_gray(150)));
                     let resp = ui.add(
                         egui::TextEdit::singleline(&mut self.new_app)
-                            .desired_width(140.0)
+                            .desired_width(150.0)
                             .hint_text("app.exe"),
                     );
                     let submit = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
@@ -315,32 +321,31 @@ impl eframe::App for App {
     }
 }
 
-/// One app row: checkbox + status dot + name + tag chip + level bar.
-/// Returns `Some(new_state)` when the checkbox is toggled.
-fn app_row(ui: &mut egui::Ui, exe: &str, active: bool, level: f32, is_chat: bool) -> Option<bool> {
-    let mut toggled = None;
+#[derive(Default)]
+struct RowAction {
+    chat: Option<bool>,
+    trim: Option<f32>,
+    mute: Option<bool>,
+}
+
+/// Two-line app row: [chat] name [chip] / [M] volume-slider %.
+fn app_row(ui: &mut egui::Ui, exe: &str, active: bool, is_chat: bool, trim: f32, muted: bool) -> RowAction {
+    let mut act = RowAction::default();
     egui::Frame::none()
         .fill(Color32::from_gray(28))
         .rounding(7.0_f32)
         .inner_margin(egui::Margin::symmetric(9.0, 6.0))
         .show(ui, |ui| {
+            // Line 1: chat checkbox, status dot, name, group chip.
             ui.horizontal(|ui| {
                 let mut chat = is_chat;
                 if ui.checkbox(&mut chat, "").changed() {
-                    toggled = Some(chat);
+                    act.chat = Some(chat);
                 }
                 let dot_col = if active { GREEN } else { Color32::from_gray(80) };
                 ui.label(RichText::new("●").size(9.0).color(dot_col));
                 ui.label(RichText::new(exe).size(13.0));
-
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let (r, _) = ui.allocate_exact_size(vec2(52.0, 7.0), Sense::hover());
-                    ui.painter().rect_filled(r, 3.5_f32, Color32::from_gray(45));
-                    let fill =
-                        Rect::from_min_size(r.min, vec2(r.width() * level.clamp(0.0, 1.0), r.height()));
-                    let barcol = if is_chat { BLUE } else { GREEN };
-                    ui.painter().rect_filled(fill, 3.5_f32, barcol);
-                    ui.add_space(6.0);
                     let (bg, fg, t) = if is_chat {
                         (BLUE, Color32::WHITE, "CHAT")
                     } else {
@@ -349,8 +354,69 @@ fn app_row(ui: &mut egui::Ui, exe: &str, active: bool, level: f32, is_chat: bool
                     ui.label(RichText::new(t).size(10.0).strong().color(fg).background_color(bg));
                 });
             });
+
+            // Line 2: mute toggle, volume slider, percent.
+            ui.horizontal(|ui| {
+                let (fill, fg) = if muted {
+                    (RED, Color32::WHITE)
+                } else {
+                    (Color32::from_gray(55), Color32::from_gray(175))
+                };
+                let mb = ui.add(
+                    egui::Button::new(RichText::new("M").size(11.0).strong().color(fg))
+                        .fill(fill)
+                        .min_size(vec2(26.0, 18.0)),
+                );
+                if mb.clicked() {
+                    act.mute = Some(!muted);
+                }
+                mb.on_hover_text(if muted { "Un-mute" } else { "Mute" });
+
+                ui.add_space(6.0);
+                let mut t = trim;
+                let width = (ui.available_width() - 42.0).max(60.0);
+                let sr = volume_slider(ui, &mut t, width, is_chat, muted);
+                if sr.changed() {
+                    act.trim = Some(t);
+                }
+                ui.add_space(6.0);
+                ui.label(
+                    RichText::new(format!("{}%", (t * 100.0).round() as i32))
+                        .size(11.0)
+                        .color(Color32::from_gray(170)),
+                );
+            });
         });
-    toggled
+    act
+}
+
+/// Compact draggable per-app volume slider, tinted by group (dimmed if muted).
+fn volume_slider(ui: &mut egui::Ui, value: &mut f32, width: f32, chat: bool, muted: bool) -> egui::Response {
+    let (rect, mut resp) = ui.allocate_exact_size(vec2(width, 16.0), Sense::click_and_drag());
+    if resp.dragged() || resp.clicked() {
+        if let Some(p) = resp.interact_pointer_pos() {
+            let t = ((p.x - rect.left()) / rect.width()).clamp(0.0, 1.0);
+            if (t - *value).abs() > f32::EPSILON {
+                *value = t;
+                resp.mark_changed();
+            }
+        }
+    }
+
+    let h = 6.0;
+    let ty = rect.center().y;
+    let track = Rect::from_min_max(pos2(rect.left(), ty - h / 2.0), pos2(rect.right(), ty + h / 2.0));
+    ui.painter().rect_filled(track, 3.0_f32, Color32::from_gray(50));
+
+    let base = if chat { BLUE } else { GREEN };
+    let col = if muted { Color32::from_gray(90) } else { base };
+    let fill = Rect::from_min_max(track.min, pos2(track.left() + *value * track.width(), track.max.y));
+    ui.painter().rect_filled(fill, 3.0_f32, col);
+
+    let kx = rect.left() + *value * rect.width();
+    ui.painter().circle_filled(pos2(kx, ty + 1.0), 6.0, Color32::from_black_alpha(60));
+    ui.painter().circle_filled(pos2(kx, ty), 6.0, Color32::from_rgb(245, 245, 248));
+    resp
 }
 
 /// Custom Chat↔Game slider with a gradient track and a knob.
@@ -410,12 +476,10 @@ fn balance_slider(ui: &mut egui::Ui, value: &mut f32) -> egui::Response {
         Color32::from_gray(150)
     };
     painter.circle_filled(kc, 3.5, accent);
-
     resp
 }
 
-/// Load Windows' Segoe UI (+ Segoe UI Symbol for arrows) as primary fonts, so
-/// no glyph shows as a tofu box and the UI looks native. Zero bundled fonts.
+/// Load Windows' Segoe UI (+ Segoe UI Symbol for arrows) as primary fonts.
 fn load_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
     let candidates = [
@@ -425,17 +489,12 @@ fn load_fonts(ctx: &egui::Context) {
     let mut loaded = Vec::new();
     for (name, path) in candidates {
         if let Ok(bytes) = std::fs::read(path) {
-            fonts
-                .font_data
-                .insert(name.to_string(), egui::FontData::from_owned(bytes));
+            fonts.font_data.insert(name.to_string(), egui::FontData::from_owned(bytes));
             loaded.push(name.to_string());
         }
     }
     if !loaded.is_empty() {
-        let prop = fonts
-            .families
-            .entry(egui::FontFamily::Proportional)
-            .or_default();
+        let prop = fonts.families.entry(egui::FontFamily::Proportional).or_default();
         for name in loaded.iter().rev() {
             prop.insert(0, name.clone());
         }
