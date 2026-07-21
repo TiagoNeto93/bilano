@@ -1,4 +1,4 @@
-//! Core Audio engine: ChatMix by per-application session ducking.
+//! Core Audio engine: game/chat balance by per-application session ducking.
 //!
 //! No virtual driver. We enumerate the audio *sessions* on the default render
 //! endpoint and set each session's volume via `ISimpleAudioVolume`. Each app's

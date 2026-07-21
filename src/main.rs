@@ -29,7 +29,15 @@ fn main() -> eframe::Result<()> {
         None => return Ok(()),
     };
 
-    let cfg = Arc::new(Mutex::new(Config::load()));
+    // Carry a pre-2.0 ChatMix config over before the first load; if one moved,
+    // its autostart entry still names the old exe, so repair that too.
+    let migrated = Config::migrate_legacy();
+    let loaded = Config::load();
+    if migrated {
+        migrate_autostart_reg(loaded.autostart);
+    }
+
+    let cfg = Arc::new(Mutex::new(loaded));
     let shared = Shared::new();
     let tx = audio::spawn(shared.clone(), cfg.clone());
     let quit_flag = Arc::new(AtomicBool::new(false));
@@ -37,7 +45,7 @@ fn main() -> eframe::Result<()> {
     tx.send(Cmd::Apply).ok(); // apply saved settings immediately
     tray::spawn(tx.clone(), cfg.clone(), shared.clone(), quit_flag.clone());
 
-    // Launched by the autostart entry (`chatmix.exe --tray`) -> start hidden in
+    // Launched by the autostart entry (`bilano.exe --tray`) -> start hidden in
     // the tray instead of popping the window on every login.
     let start_hidden = std::env::args().any(|a| a == "--tray");
 
@@ -46,7 +54,7 @@ fn main() -> eframe::Result<()> {
             .with_inner_size([384.0, 640.0])
             .with_min_inner_size([340.0, 460.0])
             .with_resizable(true)
-            .with_title("ChatMix")
+            .with_title("Bilano")
             .with_icon(Arc::new(egui::IconData {
                 rgba: icon::rgba(64),
                 width: 64,
@@ -55,7 +63,7 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
     eframe::run_native(
-        "ChatMix",
+        "Bilano",
         options,
         Box::new(move |cc| Ok(Box::new(App::new(cc, tx, shared, cfg, quit_flag, start_hidden)))),
     )
@@ -291,7 +299,7 @@ impl eframe::App for App {
                     ui.image(egui::load::SizedTexture::new(self.icon_tex.id(), vec2(36.0, 36.0)));
                     ui.add_space(4.0);
                     ui.vertical(|ui| {
-                        ui.label(RichText::new("ChatMix").size(21.0).strong());
+                        ui.label(RichText::new("Bilano").size(21.0).strong());
                         ui.label(
                             RichText::new("game ↔ voice balance")
                                 .size(11.0)
@@ -577,20 +585,36 @@ fn setup_style(ctx: &egui::Context) {
     ctx.set_style(style);
 }
 
+const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
+const RUN_VALUE: &str = "Bilano";
+/// Pre-2.0 Run entry, named for the old product and pointing at `chatmix.exe`.
+const LEGACY_RUN_VALUE: &str = "ChatMix";
+
 /// Toggle the HKCU Run entry via reg.exe (no extra crate/feature needed).
 fn set_autostart_reg(on: bool) {
     let exe = match std::env::current_exe() {
         Ok(p) => p.to_string_lossy().into_owned(),
         Err(_) => return,
     };
-    let key = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
     let mut cmd = std::process::Command::new("reg");
     if on {
         // Quote the path (may contain spaces) and pass --tray so login starts hidden.
         let value = format!("\"{}\" --tray", exe);
-        cmd.args(["add", key, "/v", "ChatMix", "/t", "REG_SZ", "/d", &value, "/f"]);
+        cmd.args(["add", RUN_KEY, "/v", RUN_VALUE, "/t", "REG_SZ", "/d", &value, "/f"]);
     } else {
-        cmd.args(["delete", key, "/v", "ChatMix", "/f"]);
+        cmd.args(["delete", RUN_KEY, "/v", RUN_VALUE, "/f"]);
     }
     let _ = cmd.output();
+}
+
+/// Repair autostart after the 2.0 rename: the old entry points at `chatmix.exe`,
+/// which no longer exists, so drop it and re-register under the current name and
+/// path if the user still wants autostart. Runs once, right after the config moves.
+fn migrate_autostart_reg(enabled: bool) {
+    let _ = std::process::Command::new("reg")
+        .args(["delete", RUN_KEY, "/v", LEGACY_RUN_VALUE, "/f"])
+        .output(); // no-op if the value was never there
+    if enabled {
+        set_autostart_reg(true);
+    }
 }

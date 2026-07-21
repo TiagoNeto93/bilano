@@ -121,6 +121,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
+name = "bilano"
+version = "2.0.0"
+dependencies = [
+ "eframe",
+ "global-hotkey",
+ "serde",
+ "serde_json",
+ "tray-icon",
+ "windows",
+]
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -308,18 +320,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ced0551234e87afee12411d535648dd89d2e7f34c78b753395567aff3d447ff"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "chatmix"
-version = "1.7.0"
-dependencies = [
- "eframe",
- "global-hotkey",
- "serde",
- "serde_json",
- "tray-icon",
- "windows",
 ]
 
 [[package]]

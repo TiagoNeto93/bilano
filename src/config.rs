@@ -1,10 +1,14 @@
 //! Persistent config: group membership (chat), per-app volume trims and mutes,
-//! the mix, and autostart. Stored as JSON at %APPDATA%\chatmix\config.json.
+//! the mix, and autostart. Stored as JSON at %APPDATA%\bilano\config.json.
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+
+const APP_DIR: &str = "bilano";
+/// Pre-2.0, when the app was called ChatMix. Only read once, by `migrate_legacy`.
+const LEGACY_APP_DIR: &str = "chatmix";
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -35,10 +39,37 @@ impl Default for Config {
     }
 }
 
+fn appdata_dir(name: &str) -> Option<PathBuf> {
+    let base = std::env::var_os("APPDATA")?;
+    Some(PathBuf::from(base).join(name))
+}
+
 impl Config {
     pub fn path() -> Option<PathBuf> {
-        let base = std::env::var_os("APPDATA")?;
-        Some(PathBuf::from(base).join("chatmix").join("config.json"))
+        Some(appdata_dir(APP_DIR)?.join("config.json"))
+    }
+
+    /// One-shot migration of a pre-2.0 ChatMix config into `%APPDATA%\bilano`.
+    /// Without it the rename would silently reset every tag, trim and mute.
+    ///
+    /// Returns whether a legacy config was actually migrated — the caller uses
+    /// that to also fix up the autostart entry, which still points at the old
+    /// exe name. The legacy directory is removed so this only ever runs once.
+    /// Call before `load()`.
+    pub fn migrate_legacy() -> bool {
+        let (Some(new), Some(legacy_dir)) = (Self::path(), appdata_dir(LEGACY_APP_DIR)) else {
+            return false;
+        };
+        let legacy = legacy_dir.join("config.json");
+        if new.exists() || !legacy.exists() {
+            return false;
+        }
+        let Some(dir) = new.parent() else { return false };
+        if std::fs::create_dir_all(dir).is_err() || std::fs::copy(&legacy, &new).is_err() {
+            return false; // leave the old config alone so a later run can retry
+        }
+        let _ = std::fs::remove_dir_all(&legacy_dir);
+        true
     }
 
     pub fn load() -> Config {

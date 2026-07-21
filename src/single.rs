@@ -6,7 +6,7 @@ use windows::Win32::Foundation::{CloseHandle, GetLastError, ERROR_ALREADY_EXISTS
 use windows::Win32::System::Threading::CreateMutexW;
 use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONINFORMATION, MB_OK};
 
-const MUTEX_NAME: windows::core::PCWSTR = w!("Local\\ChatMix_Singleton_v1");
+const MUTEX_NAME: windows::core::PCWSTR = w!("Local\\Bilano_Singleton_v1");
 
 /// Held for the process lifetime; releases the mutex on exit.
 pub struct Instance {
@@ -41,8 +41,8 @@ fn message_box() {
     unsafe {
         MessageBoxW(
             HWND::default(),
-            w!("ChatMix is already running.\nCheck your system tray (bottom-right)."),
-            w!("ChatMix"),
+            w!("Bilano is already running.\nCheck your system tray (bottom-right)."),
+            w!("Bilano"),
             MB_OK | MB_ICONINFORMATION,
         );
     }

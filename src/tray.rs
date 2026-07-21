@@ -27,7 +27,7 @@ use crate::config::Config;
 use crate::icon;
 
 const STEP: f32 = 0.1;
-const WINDOW_TITLE: PCWSTR = w!("ChatMix");
+const WINDOW_TITLE: PCWSTR = w!("Bilano");
 
 /// Reveal the main window (find it by title — works across processes and while
 /// hidden). Returns whether the window was found.
@@ -69,7 +69,7 @@ pub fn spawn(
     thread::spawn(move || unsafe {
         let mut tray = Some(
             TrayIconBuilder::new()
-                .with_tooltip("ChatMix — game vs chat balance")
+                .with_tooltip("Bilano — game vs chat balance")
                 .with_menu_on_left_click(false) // left-click opens UI; right-click shows menu
                 .with_icon(tray_icon::Icon::from_rgba(icon::rgba(32), 32, 32).expect("icon"))
                 .build()
@@ -181,7 +181,7 @@ fn rebuild(tray: &TrayIcon, shared: &Arc<Shared>, cfg: &Arc<Mutex<Config>>) -> M
     let chat = cfg.lock().map(|c| c.chat_set()).unwrap_or_default();
 
     let menu = Menu::new();
-    let show = MenuItem::new("Open ChatMix", true, None);
+    let show = MenuItem::new("Open Bilano", true, None);
     menu.append(&show).ok();
     menu.append(&PredefinedMenuItem::separator()).ok();
     menu.append(&MenuItem::new("Tag voice-chat apps:", false, None))

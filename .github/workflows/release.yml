@@ -1,7 +1,7 @@
 name: Release
 
 # Build the Windows exe and attach it to the GitHub Release whenever a
-# version tag (e.g. v1.5.0) is pushed.
+# version tag (e.g. v2.0.0) is pushed.
 on:
   push:
     tags:
@@ -29,9 +29,9 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          Copy-Item target/release/chatmix.exe dist/chatmix.exe -Force
-          $zip = "ChatMix-$tag-win64.zip"
-          Compress-Archive -Path dist/chatmix.exe, dist/README.txt -DestinationPath $zip -Force
+          Copy-Item target/release/bilano.exe dist/bilano.exe -Force
+          $zip = "Bilano-$tag-win64.zip"
+          Compress-Archive -Path dist/bilano.exe, dist/README.txt -DestinationPath $zip -Force
           "ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Publish release
@@ -42,7 +42,7 @@ jobs:
           $tag = "${{ github.ref_name }}"
           # Create the release with auto-generated notes; if it already exists,
           # just (re)upload the asset.
-          gh release create "$tag" "$env:ZIP" --title "ChatMix $tag" --generate-notes
+          gh release create "$tag" "$env:ZIP" --title "Bilano $tag" --generate-notes
           if ($LASTEXITCODE -ne 0) {
             gh release upload "$tag" "$env:ZIP" --clobber
           }
