@@ -205,8 +205,11 @@ When a check disagrees with expectations, suspect the check first.
   message containing double quotes gets split into pathspecs. Write the message to a file
   and use `git commit -F`. Same class of problem breaks `gh --jq` expressions containing
   spaces — use `ConvertFrom-Json` and pipe through PowerShell instead.
-- **`Set-Content -Encoding utf8` writes a BOM** in 5.1, which lands *inside* a commit
-  subject line. Use `-Encoding ascii` for commit messages and plain-text files.
+- **Neither `Set-Content` encoding is safe for commit messages.** `-Encoding utf8` writes a
+  BOM that lands *inside* the subject line; `-Encoding ascii` silently turns every em-dash
+  and curly quote into `?`. Both were shipped before being spotted. Write the file with
+  `[System.IO.File]::WriteAllText($path, $msg, (New-Object System.Text.UTF8Encoding($false)))`
+  — UTF-8, no BOM — or keep the message strictly ASCII.
 - **Headless Chrome `--window-size=390` does not give a 390px layout viewport.** Windows
   enforces a minimum window width, so the page lays out wider and the screenshot is merely
   **cropped** — which looks exactly like a responsive-layout bug and once caused a
