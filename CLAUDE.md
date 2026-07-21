@@ -1,9 +1,10 @@
 # Bilano — project guide for Claude
 
 A lightweight, driver-free **game ↔ voice-chat balance dial** for Windows: one dial
-balances game audio against voice-chat audio. A hand-built alternative to SteelSeries
-Sonar, without the virtual audio driver, the install, or the bloat. Single
-self-contained `.exe` (~3 MB), starts instantly, clean to remove.
+balances game audio against voice-chat audio. A hand-built alternative to the vendor
+mixer apps that ship with gaming headsets, without the virtual audio driver, the
+install, or the bloat. Single self-contained `.exe` (~3 MB), starts instantly, clean
+to remove.
 
 Status: **working v2.0**. Personal/SFW tooling, now a public repo. (Cargo `version`
 is kept aligned with the product/tag version.)
@@ -24,8 +25,13 @@ Rules that follow from this:
   upgrade notes, all of which describe the *old* install, not this product.
 - Describing the function as "chat/game balance" is fine and desirable; naming the
   product that is not.
-- Referring to SteelSeries Sonar as a comparison is fine (nominative fair use), but
-  lead with what Bilano does rather than defining it by their product.
+- **Keep competitor brand names out of user-facing docs** (README, `dist/README.txt`,
+  UI, release notes). Naming them would be lawful nominative fair use, but a sentence
+  that both invokes a brand *and* frames Bilano as a substitute for it is the easiest
+  thing for someone to file a takedown against — and it buys little. Describe the
+  category instead: "the game/chat balance dial built into some gaming headsets".
+  The mentions in this section are the exception: they document the rename rationale,
+  which is factual rather than promotional.
 
 ## What it does & how (the core idea)
 
@@ -49,8 +55,8 @@ app volume = taper(group_level(mix, group)) × per-app-trim × (muted ? 0 : 1)
   losing the trim. Verified end-to-end (mute→0, trim scales, rides the dial).
 - On quit the engine restores every app to full volume.
 
-Trade-off vs. Sonar: this is ducking (it moves the apps' real Volume-Mixer levels),
-not separate audio buses. Audibly identical for this use case.
+Trade-off vs. the vendor mixer apps: this is ducking (it moves the apps' real
+Volume-Mixer levels), not separate audio buses. Audibly identical for this use case.
 
 ## Architecture — READ THIS BEFORE TOUCHING THREADING
 

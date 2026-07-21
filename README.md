@@ -14,8 +14,8 @@ One beam, a pan on each side.
 - ⌨️ **Global hotkeys** — adjust the mix without leaving your game.
 - 🧹 **Clean** — no background driver; restores every app to full volume on quit.
 
-If you've used the game/chat balance dial on a SteelSeries Arctis or in Sonar, this
-does the same job for any headset, without the driver stack.
+Same idea as the game/chat balance dial built into some gaming headsets — but done
+in software, so it works with any headset and there's nothing to install.
 
 ## Install
 

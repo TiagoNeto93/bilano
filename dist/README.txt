@@ -2,8 +2,8 @@ Bilano - game vs voice audio balance for Windows
 =================================================
 
 One slider balances your game audio against your voice-chat apps. No
-installer, no audio driver, no runtime - it's a single .exe. Same job as
-the game/chat dial on a SteelSeries Arctis, minus the driver stack.
+installer, no audio driver, no runtime - it's a single .exe. Same idea as
+the game/chat dial built into some gaming headsets, done in software.
 
 The name is from Latin "bilanx", two scale-pans - the root of "balance".
 
