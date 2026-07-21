@@ -82,7 +82,7 @@ pub fn rgba(size: u32) -> Vec<u8> {
 
     // Box downsample ss×ss -> size×size.
     let mut out = vec![0u8; (size * size * 4) as usize];
-    let cnt = (ss * ss) as u32;
+    let cnt = ss * ss;
     for y in 0..size {
         for x in 0..size {
             let (mut r, mut g, mut b, mut a) = (0u32, 0u32, 0u32, 0u32);

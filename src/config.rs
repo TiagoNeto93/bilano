@@ -173,8 +173,10 @@ mod tests {
 
     #[test]
     fn chat_set_lowercases_and_dedups() {
-        let mut c = Config::default();
-        c.chat = vec!["Discord.EXE".into(), "discord.exe".into(), "Steam.exe".into()];
+        let c = Config {
+            chat: vec!["Discord.EXE".into(), "discord.exe".into(), "Steam.exe".into()],
+            ..Default::default()
+        };
         let s = c.chat_set();
         assert!(s.contains("discord.exe"));
         assert!(s.contains("steam.exe"));
@@ -218,8 +220,10 @@ mod tests {
 
     #[test]
     fn json_round_trips_with_new_fields() {
-        let mut c = Config::default();
-        c.mix = -0.3;
+        let mut c = Config {
+            mix: -0.3,
+            ..Default::default()
+        };
         c.set_volume("game.exe", 0.4);
         c.set_muted("spotify.exe", true);
         let json = serde_json::to_string(&c).unwrap();
