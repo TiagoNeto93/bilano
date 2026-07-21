@@ -188,6 +188,47 @@ CI: `.github/workflows/ci.yml` runs build+test+clippy on push to `main` and on P
   `%APPDATA%\chatmix\config.json` existing, and the legacy dir is deleted after a
   successful copy, so each test needs the old state recreated first.
 
+## Verifying things on Windows — traps that produce *confidently wrong* results
+
+Every one of these was hit for real. They matter more than ordinary bugs because each
+one fails **silently and plausibly**: you get an answer, it looks fine, and it's wrong.
+When a check disagrees with expectations, suspect the check first.
+
+- **`[Math]::Max(0, $v)` picks the `int` overload.** PowerShell resolves against the
+  *first* argument's type, so `0.5` rounds to `0` and `0.65` to `1` (banker's rounding).
+  A gain-math cross-check "proved" the taper was broken when only the harness was.
+  Always write `[Math]::Max(0.0, $v)` / `[double]`-annotate the parameters.
+- **Decimal comma.** This machine's locale formats `0.5` as `0,5`, which quietly breaks
+  anything that parses output. Format with
+  `$v.ToString('N3',[Globalization.CultureInfo]::InvariantCulture)`.
+- **Native-command quoting.** PS 5.1 re-parses arguments to native exes, so a `git commit -m`
+  message containing double quotes gets split into pathspecs. Write the message to a file
+  and use `git commit -F`. Same class of problem breaks `gh --jq` expressions containing
+  spaces — use `ConvertFrom-Json` and pipe through PowerShell instead.
+- **`Set-Content -Encoding utf8` writes a BOM** in 5.1, which lands *inside* a commit
+  subject line. Use `-Encoding ascii` for commit messages and plain-text files.
+- **Headless Chrome `--window-size=390` does not give a 390px layout viewport.** Windows
+  enforces a minimum window width, so the page lays out wider and the screenshot is merely
+  **cropped** — which looks exactly like a responsive-layout bug and once caused a
+  fictitious "mobile is broken" diagnosis.
+- **`--dump-dom` returns nothing** in Chrome 150's `--headless=new`.
+
+  **Use Playwright for `docs/index.html` instead of fighting either of the above.** It does
+  real viewport emulation and can actually drive the demo (drag, mute, chip, trim), which a
+  screenshot can never verify. It installs in seconds *outside* the repo and reuses the
+  installed browser, so nothing is downloaded and nothing is added to the project:
+
+  ```powershell
+  $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = '1'   # reuse installed Chrome
+  npm install playwright --prefix <scratch-dir>
+  # then: chromium.launch({ channel: 'chrome' })
+  #       browser.newPage({ viewport: { width: 390, height: 900 } })
+  # assert: document.documentElement.scrollWidth <= window.innerWidth
+  ```
+- **A running instance transiently locks files in `dist/`** — writes fail with
+  EPERM/Access-denied, and it once aborted a `git checkout` with "Invalid argument".
+  `Stop-Process -Name bilano` before touching `dist/`, not just before rebuilding.
+
 ## Regenerating `docs/screenshot.png`
 
 The app list is **live audio sessions merged with `Config::known_apps()`**, so a naive

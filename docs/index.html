@@ -87,9 +87,12 @@ a{color:var(--text)}
   background:var(--panel);border:1px solid var(--line);border-radius:14px;
   max-width:44rem;
 }
+/* The rig is a replica of the app, so it uses the app's own face (Segoe UI),
+   not the page's monospace furniture. Mono stays for the dB scale, which is
+   instrumentation this page adds rather than something the app shows. */
 .readout{
-  font-family:var(--mono);font-size:1.0625rem;font-weight:600;
-  text-align:center;letter-spacing:.02em;margin-bottom:1rem;min-height:1.6em;
+  font-family:var(--sans);font-size:1.125rem;font-weight:650;
+  text-align:center;letter-spacing:-.01em;margin-bottom:1rem;min-height:1.6em;
 }
 .dial{
   position:relative;height:2.75rem;cursor:grab;touch-action:none;
@@ -120,26 +123,54 @@ a{color:var(--text)}
 }
 .ends{
   display:flex;justify-content:space-between;
-  font-family:var(--mono);font-size:.75rem;font-weight:600;letter-spacing:.1em;
+  font-family:var(--sans);font-size:.8125rem;font-weight:650;
   margin-top:.75rem;
 }
 .ends .c{color:var(--chat)}
 .ends .g{color:var(--game)}
 
-/* live meters */
-.meters{margin-top:1.5rem;display:grid;gap:.6rem}
-.meter{display:grid;grid-template-columns:3.5rem 1fr 5rem;align-items:center;gap:.75rem}
-.meter b{font-family:var(--mono);font-size:.6875rem;font-weight:600;letter-spacing:.12em;color:var(--dim)}
-.bar{height:8px;border-radius:4px;background:var(--raise);overflow:hidden}
-.bar i{display:block;height:100%;border-radius:4px;width:100%;transition:width .07s linear}
-.meter u{
-  font-family:var(--mono);font-size:.75rem;text-decoration:none;
-  text-align:right;color:var(--dim);font-variant-numeric:tabular-nums;
+/* group levels in dB — the taper, stated */
+.glevels{
+  font-family:var(--mono);font-size:.6875rem;letter-spacing:.06em;
+  color:var(--faint);text-align:center;margin-top:1.25rem;
+  font-variant-numeric:tabular-nums;
+}
+
+/* app rows — same shape as the app's own: dot, name, chip / mute, trim, percent */
+.rows{margin-top:.75rem;display:grid;gap:.5rem}
+.row{background:#1C1C1C;border-radius:7px;padding:.55rem .65rem}
+.rline{display:flex;align-items:center;gap:.45rem}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--game);flex:none}
+.dot.idle{background:#505050}
+.exe{font-size:.8125rem;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip{
+  margin-left:auto;flex:none;font-family:var(--sans);font-size:.625rem;font-weight:700;
+  border:0;border-radius:5px;min-width:46px;padding:.22rem .5rem;cursor:pointer;
+}
+.chip.isChat{background:var(--chat);color:#fff}
+.chip.isGame{background:#3C3C3C;color:#C8C8C8}
+.rline+.rline{margin-top:.45rem}
+.mute{
+  flex:none;font-family:var(--sans);font-size:.6875rem;font-weight:700;
+  border:0;border-radius:5px;width:26px;height:18px;cursor:pointer;
+  background:#373737;color:#AFAFAF;
+}
+.mute.on{background:#C44242;color:#fff}
+.trim{position:relative;flex:1;height:16px;min-width:0;cursor:pointer;touch-action:none}
+.trim s{position:absolute;top:50%;left:0;right:0;height:6px;border-radius:3px;background:#323232;transform:translateY(-50%);text-decoration:none}
+.trim i{position:absolute;top:50%;left:0;height:6px;border-radius:3px;transform:translateY(-50%)}
+.trim b{
+  position:absolute;top:50%;width:12px;height:12px;border-radius:50%;
+  background:#F5F5F8;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,.5);
+}
+.pct{flex:none;font-size:.6875rem;color:#AAA;width:2.4rem;text-align:right;font-variant-numeric:tabular-nums}
+.out{
+  flex:none;font-family:var(--mono);font-size:.625rem;color:var(--faint);
+  width:4.5rem;text-align:right;font-variant-numeric:tabular-nums;
 }
 @media (max-width:30rem){
-  .meter{grid-template-columns:2.75rem 1fr 4.25rem;gap:.5rem}
-  .meter u{font-size:.6875rem}
   .rig{border-radius:12px}
+  .out{display:none} /* the trim percent already carries it on small screens */
 }
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
 
@@ -235,20 +266,13 @@ footer a:hover{color:var(--text)}
       <div class="ruler"><span>&minus;40 dB</span><span>0 dB</span><span>&minus;40 dB</span></div>
       <div class="ends"><span class="c">CHAT</span><span class="g">GAME</span></div>
 
-      <div class="meters">
-        <div class="meter">
-          <b>CHAT</b>
-          <div class="bar"><i id="chatBar" style="background:var(--chat)"></i></div>
-          <u id="chatDb">0.0 dB</u>
-        </div>
-        <div class="meter">
-          <b>GAME</b>
-          <div class="bar"><i id="gameBar" style="background:var(--game);width:65%"></i></div>
-          <u id="gameDb">&minus;14.0 dB</u>
-        </div>
-      </div>
+      <div class="glevels" id="glevels">CHAT 0.0 dB &nbsp;&middot;&nbsp; GAME &minus;14.0 dB</div>
 
-      <p class="hint" id="hint">&larr; Drag it &rarr;</p>
+      <!-- Built by JS: each row's "out" is the full chain from audio.rs,
+           taper(group_level) x trim x (muted ? 0 : 1). -->
+      <div class="rows" id="rows"></div>
+
+      <p class="hint" id="hint">Drag the dial, a slider, or tap a chip</p>
     </div>
 
     <div class="cta">
@@ -356,32 +380,106 @@ footer a:hover{color:var(--text)}
   var dial = document.getElementById('dial');
   var knob = document.getElementById('knob');
   var readout = document.getElementById('readout');
-  var bars = { chat: document.getElementById('chatBar'), game: document.getElementById('gameBar') };
-  var dbs  = { chat: document.getElementById('chatDb'),  game: document.getElementById('gameDb')  };
+  var glevels = document.getElementById('glevels');
+  var rowsEl = document.getElementById('rows');
+
+  // A plausible setup, not anyone's real one.
+  var apps = [
+    { exe: 'discord.exe',     chat: true,  trim: 1.00, muted: false, live: true  },
+    { exe: 'apexlegends.exe', chat: false, trim: 0.85, muted: false, live: true  },
+    { exe: 'spotify.exe',     chat: false, trim: 0.45, muted: true,  live: false }
+  ];
 
   function level(m, group) {
     var v = group === 'game' ? 1 + m : 1 - m;
     return Math.min(1, Math.max(0, v));
   }
+  function taper(lv) {
+    if (lv <= 0.001) return 0;
+    if (lv >= 0.999) return 1;
+    return Math.pow(10, (MIN_DB * (1 - lv)) / 20);
+  }
+  function effective(app) {              // the chain from audio.rs
+    if (app.muted) return 0;
+    return taper(level(mix, app.chat ? 'chat' : 'game')) * app.trim;
+  }
+  function db(lv) {
+    return lv <= 0.001 ? '−∞ dB' : (MIN_DB * (1 - lv)).toFixed(1).replace('-', '−') + ' dB';
+  }
+
+  function buildRows() {
+    apps.forEach(function (app, n) {
+      var row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML =
+        '<div class="rline">' +
+          '<span class="dot' + (app.live ? '' : ' idle') + '"></span>' +
+          '<span class="exe">' + app.exe + '</span>' +
+          '<button class="chip" data-chip="' + n + '"></button>' +
+        '</div>' +
+        '<div class="rline">' +
+          '<button class="mute" data-mute="' + n + '">M</button>' +
+          '<span class="trim" data-trim="' + n + '"><s></s><i></i><b></b></span>' +
+          '<span class="pct"></span><span class="out"></span>' +
+        '</div>';
+      rowsEl.appendChild(row);
+      app.el = row;
+    });
+
+    rowsEl.addEventListener('click', function (e) {
+      var c = e.target.closest('[data-chip]'), m = e.target.closest('[data-mute]');
+      if (c) { apps[+c.dataset.chip].chat = !apps[+c.dataset.chip].chat; touch(); }
+      if (m) { apps[+m.dataset.mute].muted = !apps[+m.dataset.mute].muted; touch(); }
+    });
+
+    rowsEl.querySelectorAll('[data-trim]').forEach(function (t) {
+      var app = apps[+t.dataset.trim], down = false;
+      function set(x) {
+        var r = t.getBoundingClientRect();
+        app.trim = Math.min(1, Math.max(0, (x - r.left) / r.width));
+        touch();
+      }
+      t.addEventListener('pointerdown', function (e) { down = true; t.setPointerCapture(e.pointerId); set(e.clientX); });
+      t.addEventListener('pointermove', function (e) { if (down) set(e.clientX); });
+      t.addEventListener('pointerup',     function () { down = false; });
+      t.addEventListener('pointercancel', function () { down = false; });
+    });
+  }
+
+  function touch() { rig.classList.add('touched'); render(); }
 
   function render() {
     var pct = Math.round(mix * 100);
     knob.style.left = ((mix * 0.5 + 0.5) * 100) + '%';
 
     var label, accent;
-    if (pct === 0)      { label = 'Balanced';                accent = '#9AA0AA'; }
-    else if (pct > 0)   { label = pct + '%  →  Game';   accent = '#34CD82'; }
+    if (pct === 0)      { label = 'Balanced';                 accent = '#9AA0AA'; }
+    else if (pct > 0)   { label = pct + '%  →  Game';         accent = '#34CD82'; }
     else                { label = 'Chat  ←  ' + (-pct) + '%'; accent = '#4A89FF'; }
 
     readout.textContent = label;
     readout.style.color = accent;
     knob.style.setProperty('--dot', accent);
 
-    ['chat', 'game'].forEach(function (g) {
-      var lv = level(mix, g);
-      bars[g].style.width = (lv * 100) + '%';
-      dbs[g].textContent = lv <= 0.001 ? '−∞ dB'
-                                       : (MIN_DB * (1 - lv)).toFixed(1).replace('-', '−') + ' dB';
+    glevels.innerHTML = 'CHAT ' + db(level(mix, 'chat')) +
+                        ' &nbsp;·&nbsp; GAME ' + db(level(mix, 'game'));
+
+    apps.forEach(function (app) {
+      var col = app.chat ? '#4A89FF' : '#34CD82';
+      var chip = app.el.querySelector('.chip');
+      chip.textContent = app.chat ? 'CHAT' : 'GAME';
+      chip.className = 'chip ' + (app.chat ? 'isChat' : 'isGame');
+      chip.title = 'Move to ' + (app.chat ? 'Game' : 'Chat');
+
+      var mute = app.el.querySelector('.mute');
+      mute.className = 'mute' + (app.muted ? ' on' : '');
+      mute.title = app.muted ? 'Un-mute' : 'Mute';
+
+      app.el.querySelector('.trim i').style.width = (app.trim * 100) + '%';
+      app.el.querySelector('.trim i').style.background = app.muted ? '#5A5A5A' : col;
+      app.el.querySelector('.trim b').style.left = (app.trim * 100) + '%';
+      app.el.querySelector('.pct').textContent = Math.round(app.trim * 100) + '%';
+      app.el.querySelector('.out').textContent = 'out ' + Math.round(effective(app) * 100) + '%';
     });
 
     dial.setAttribute('aria-valuenow', pct);
@@ -422,6 +520,7 @@ footer a:hover{color:var(--text)}
     if (handled) { e.preventDefault(); rig.classList.add('touched'); }
   });
 
+  buildRows();
   render();
 })();
 </script>
