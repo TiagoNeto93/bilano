@@ -22,6 +22,9 @@ One beam, a pan on each side.
 Same idea as the game/chat balance dial built into some gaming headsets — but done
 in software, so it works with any headset and there's nothing to install.
 
+**[bilano website →](https://tiagoneto93.github.io/bilano/)** — try the dial in your
+browser before you download anything.
+
 ## Install
 
 1. Download the latest `Bilano-vX.Y.Z-win64.zip` from the [**Releases**](../../releases) page.

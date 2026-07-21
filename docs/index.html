@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bilano — one dial between your game and your friends</title>
+<meta name="description" content="A free 3 MB Windows app. One dial balances game audio against voice chat. No drivers, no installer.">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Bilano — one dial between your game and your friends">
+<meta property="og:description" content="Drag toward Game and voice chat fades down. Drag toward Chat and the game does. Free, 3 MB, no drivers.">
+<meta property="og:image" content="https://tiagoneto93.github.io/bilano/screenshot.png">
+<meta property="og:url" content="https://tiagoneto93.github.io/bilano/">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23101114'/><rect x='4' y='14' width='24' height='4' rx='2' fill='%234A89FF'/><rect x='16' y='14' width='12' height='4' rx='2' fill='%2334CD82'/><circle cx='16' cy='16' r='5' fill='%23FAFAFC'/></svg>">
+
+<style>
+:root{
+  --ink:#101114;      /* page — a shade under the app's panel so the app sits on top of it */
+  --panel:#16171A;    /* the app's own background */
+  --raise:#1C1E22;
+  --line:#26282E;
+  --text:#E4E6EA;
+  --dim:#8A8F98;
+  --faint:#5C616B;
+  --chat:#4A89FF;     /* the app's Chat blue */
+  --game:#34CD82;     /* the app's Game green */
+  --sans:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,"Inter",sans-serif;
+  --mono:"Cascadia Mono",Consolas,ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--ink);color:var(--text);
+  font-family:var(--sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{width:min(100% - 2.5rem,64rem);margin-inline:auto}
+
+/* ---- shared type ---- */
+.eyebrow{
+  font-family:var(--mono);font-size:.6875rem;font-weight:600;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--faint);
+  margin:0 0 1.25rem;
+}
+h2{
+  font-size:clamp(1.4rem,3vw,1.85rem);font-weight:650;letter-spacing:-.02em;
+  margin:0 0 1rem;line-height:1.25;
+}
+p{margin:0 0 1rem;color:var(--dim)}
+a{color:var(--text)}
+:focus-visible{outline:2px solid var(--chat);outline-offset:3px;border-radius:4px}
+
+/* ---- top bar ---- */
+.top{border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;height:3.75rem;gap:1rem}
+.mark{display:flex;align-items:center;gap:.6rem;font-weight:700;letter-spacing:-.03em;font-size:1.0625rem}
+.mark span{
+  width:1.375rem;height:1.375rem;border-radius:.4rem;flex:none;
+  background:linear-gradient(105deg,var(--chat),var(--game));
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);
+}
+.top a{
+  font-family:var(--mono);font-size:.75rem;letter-spacing:.06em;
+  color:var(--dim);text-decoration:none;
+}
+.top a:hover{color:var(--text)}
+
+/* ---- hero ---- */
+.hero{padding:clamp(3rem,8vw,5.5rem) 0 clamp(2.5rem,6vw,4rem)}
+.hero h1{
+  font-size:clamp(2rem,5.4vw,3.5rem);font-weight:680;line-height:1.05;
+  letter-spacing:-.035em;margin:0 0 1.25rem;max-width:19ch;
+}
+.hero h1 b{font-weight:680;color:var(--chat)}
+.hero h1 i{font-style:normal;color:var(--game)}
+.lede{font-size:clamp(1rem,2vw,1.125rem);max-width:52ch;margin-bottom:0}
+
+/* ---- the dial: the one loud thing on this page ---- */
+.rig{
+  margin:clamp(2.25rem,5vw,3.25rem) 0 0;padding:clamp(1.25rem,3vw,2rem);
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  max-width:44rem;
+}
+.readout{
+  font-family:var(--mono);font-size:1.0625rem;font-weight:600;
+  text-align:center;letter-spacing:.02em;margin-bottom:1rem;min-height:1.6em;
+}
+.dial{
+  position:relative;height:2.75rem;cursor:grab;touch-action:none;
+  display:flex;align-items:center;
+}
+.dial:active{cursor:grabbing}
+.track{
+  position:relative;height:12px;width:100%;border-radius:6px;
+  background:linear-gradient(90deg,var(--chat),var(--game));
+}
+.notch{
+  position:absolute;left:50%;top:-5px;bottom:-5px;width:1.5px;
+  background:rgba(255,255,255,.32);transform:translateX(-50%);
+}
+.knob{
+  position:absolute;top:50%;width:22px;height:22px;border-radius:50%;
+  background:#FAFAFC;transform:translate(-50%,-50%);pointer-events:none;
+  box-shadow:0 2px 6px rgba(0,0,0,.55),inset 0 0 0 1px rgba(0,0,0,.28);
+  display:grid;place-items:center;
+}
+.knob::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--dot,#9AA0AA)}
+
+/* dB ruler — the real taper floor, not decoration */
+.ruler{
+  display:flex;justify-content:space-between;
+  font-family:var(--mono);font-size:.625rem;letter-spacing:.08em;
+  color:var(--faint);margin-top:.5rem;
+}
+.ends{
+  display:flex;justify-content:space-between;
+  font-family:var(--mono);font-size:.75rem;font-weight:600;letter-spacing:.1em;
+  margin-top:.75rem;
+}
+.ends .c{color:var(--chat)}
+.ends .g{color:var(--game)}
+
+/* live meters */
+.meters{margin-top:1.5rem;display:grid;gap:.6rem}
+.meter{display:grid;grid-template-columns:3.5rem 1fr 5rem;align-items:center;gap:.75rem}
+.meter b{font-family:var(--mono);font-size:.6875rem;font-weight:600;letter-spacing:.12em;color:var(--dim)}
+.bar{height:8px;border-radius:4px;background:var(--raise);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:4px;width:100%;transition:width .07s linear}
+.meter u{
+  font-family:var(--mono);font-size:.75rem;text-decoration:none;
+  text-align:right;color:var(--dim);font-variant-numeric:tabular-nums;
+}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+
+.hint{
+  font-family:var(--mono);font-size:.6875rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--faint);text-align:center;margin:1.25rem 0 0;
+}
+.rig.touched .hint{visibility:hidden}
+
+/* ---- calls to action ---- */
+.cta{display:flex;flex-wrap:wrap;align-items:center;gap:1rem;margin-top:2rem}
+.btn{
+  display:inline-block;background:var(--text);color:var(--ink);
+  font-weight:650;font-size:.9375rem;letter-spacing:-.01em;
+  padding:.8rem 1.5rem;border-radius:9px;text-decoration:none;
+}
+.btn:hover{background:#fff}
+.spec{font-family:var(--mono);font-size:.75rem;color:var(--faint);letter-spacing:.06em}
+
+/* ---- sections ---- */
+section{padding:clamp(3rem,7vw,4.5rem) 0;border-top:1px solid var(--line)}
+.two{display:grid;gap:clamp(2rem,5vw,3.5rem);grid-template-columns:1fr}
+@media (min-width:52rem){.two{grid-template-columns:minmax(0,20rem) minmax(0,1fr);align-items:start}}
+.shot{width:100%;height:auto;border-radius:12px;border:1px solid var(--line);display:block}
+
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:1.5rem;counter-reset:s}
+.steps li{padding-left:2.5rem;position:relative;color:var(--dim)}
+.steps li::before{
+  counter-increment:s;content:counter(s);position:absolute;left:0;top:.1rem;
+  font-family:var(--mono);font-size:.6875rem;font-weight:600;color:var(--faint);
+  width:1.5rem;height:1.5rem;border:1px solid var(--line);border-radius:50%;
+  display:grid;place-items:center;
+}
+.steps strong{color:var(--text);font-weight:600}
+.warn{
+  margin-top:1.75rem;padding:1rem 1.25rem;background:var(--panel);
+  border:1px solid var(--line);border-left:2px solid var(--chat);border-radius:0 10px 10px 0;
+}
+.warn p{margin:0;font-size:.9375rem}
+
+.keys{width:100%;border-collapse:collapse;font-size:.9375rem}
+.keys th{
+  text-align:left;font-family:var(--mono);font-size:.6875rem;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+  padding:0 0 .75rem;border-bottom:1px solid var(--line);
+}
+.keys td{padding:.7rem 0;border-bottom:1px solid var(--line);color:var(--dim)}
+.keys kbd{
+  font-family:var(--mono);font-size:.75rem;color:var(--text);
+  background:var(--raise);border:1px solid var(--line);
+  border-radius:5px;padding:.2rem .45rem;white-space:nowrap;
+}
+
+footer{border-top:1px solid var(--line);padding:2.5rem 0 3.5rem}
+footer p{font-size:.875rem;max-width:56ch}
+footer a{color:var(--dim)}
+footer a:hover{color:var(--text)}
+.fine{font-family:var(--mono);font-size:.6875rem;letter-spacing:.06em;color:var(--faint);margin:1.5rem 0 0}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="mark"><span></span>Bilano</div>
+    <a href="https://github.com/TiagoNeto93/bilano">Source on GitHub&nbsp;&rarr;</a>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+  <div class="hero">
+    <h1>One dial. Your <i>game</i> on one side, your <b>friends</b> on the other.</h1>
+    <p class="lede">
+      Drag toward Game and voice chat fades down. Drag toward Chat and the game does.
+      No virtual audio driver, no installer — a single 3&nbsp;MB program that sits in your tray.
+    </p>
+
+    <!-- Working replica of the app's dial, running the same gain math as audio.rs -->
+    <div class="rig" id="rig">
+      <div class="readout" id="readout" aria-live="polite">Balanced</div>
+
+      <div class="dial" id="dial" role="slider" tabindex="0"
+           aria-label="Balance between chat and game audio"
+           aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" aria-valuetext="Balanced">
+        <div class="track">
+          <div class="notch"></div>
+          <div class="knob" id="knob" style="left:50%"></div>
+        </div>
+      </div>
+
+      <div class="ruler"><span>&minus;40 dB</span><span>0 dB</span><span>&minus;40 dB</span></div>
+      <div class="ends"><span class="c">CHAT</span><span class="g">GAME</span></div>
+
+      <div class="meters">
+        <div class="meter">
+          <b>CHAT</b>
+          <div class="bar"><i id="chatBar" style="background:var(--chat)"></i></div>
+          <u id="chatDb">0.0 dB</u>
+        </div>
+        <div class="meter">
+          <b>GAME</b>
+          <div class="bar"><i id="gameBar" style="background:var(--game)"></i></div>
+          <u id="gameDb">0.0 dB</u>
+        </div>
+      </div>
+
+      <p class="hint" id="hint">&larr; Drag it &rarr;</p>
+    </div>
+
+    <div class="cta">
+      <a class="btn" href="https://github.com/TiagoNeto93/bilano/releases/latest">Download for Windows</a>
+      <span class="spec">Free &middot; 3 MB &middot; Windows 10/11 64-bit</span>
+    </div>
+  </div>
+</div>
+
+<section>
+  <div class="wrap two">
+    <img class="shot" src="screenshot.png" width="421" height="826"
+         alt="The Bilano window: a blue-to-green gradient dial reading Chat 35%, above Chat and Game sections listing apps with individual volume sliders and mute buttons.">
+    <div>
+      <p class="eyebrow">What it does</p>
+      <h2>It turns other apps down, so you don't have to.</h2>
+      <p>
+        Windows already gives every app its own volume — the sliders you'd find in the Volume Mixer.
+        Bilano just moves them for you. Tag Discord and anything else you talk on as <strong>Chat</strong>;
+        everything else counts as <strong>Game</strong>. One dial then fades whichever side you're
+        turning away from.
+      </p>
+      <p>
+        The fade is measured in decibels rather than percent, so the second half of the dial doesn't
+        fall off a cliff — moving it feels the same at either end. Each app also gets its own volume
+        slider and a mute button, and every one of them is put back to full when you quit.
+      </p>
+      <p>
+        Because it's only moving volumes, there's no virtual sound card to install and nothing left
+        running when it's closed. That's the whole trade: it can't route audio to separate devices
+        the way a driver can, but for balancing a game against a voice call it sounds the same.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap two">
+    <div>
+      <p class="eyebrow">Install</p>
+      <h2>Three steps, one of them annoying.</h2>
+    </div>
+    <div>
+      <ol class="steps">
+        <li><strong>Download the zip</strong> from the releases page and unzip it wherever you like.</li>
+        <li><strong>Run <code>bilano.exe</code>.</strong> The window opens and a dial icon appears in your tray, near the clock.</li>
+        <li><strong>Tag your voice apps</strong> as Chat. Discord is tagged already. Everything else stays Game.</li>
+      </ol>
+      <div class="warn">
+        <p>
+          <strong>Windows will warn you the first time.</strong> Bilano isn't code-signed — a certificate
+          costs more per year than this project will ever make — so SmartScreen says
+          "Windows protected your PC". Choose <strong>More info &rarr; Run anyway</strong>. Some antivirus
+          software flags unsigned programs too; if yours quarantines it, allow the folder.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap two">
+    <div>
+      <p class="eyebrow">Hotkeys</p>
+      <h2>Adjust it without leaving the game.</h2>
+      <p>These work anywhere, including full screen.</p>
+    </div>
+    <div>
+      <table class="keys">
+        <thead><tr><th>Keys</th><th>Does</th></tr></thead>
+        <tbody>
+          <tr><td><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>&larr;</kbd></td><td>Move toward Chat</td></tr>
+          <tr><td><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>&rarr;</kbd></td><td>Move toward Game</td></tr>
+          <tr><td><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>&darr;</kbd></td><td>Back to the middle</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>
+      Bilano is named after <em>bilanx</em>, the Latin for "two scale-pans" and the root of the word
+      <em>balance</em>: one beam, a pan on each side. It's free and
+      <a href="https://github.com/TiagoNeto93/bilano">open source</a> under the MIT license —
+      use it, fork it, ship it.
+    </p>
+    <p class="fine">
+      &copy; 2026 Tiago Neto &middot; MIT &middot;
+      <a href="https://github.com/TiagoNeto93/bilano/releases/latest">Releases</a> &middot;
+      <a href="https://github.com/TiagoNeto93/bilano/issues">Report a problem</a>
+    </p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // Mirrors src/audio.rs: group_level() + the dB taper, MIN_DB = -40.
+  var MIN_DB = -40;
+  var mix = 0; // -1 = all Chat, +1 = all Game
+
+  var rig = document.getElementById('rig');
+  var dial = document.getElementById('dial');
+  var knob = document.getElementById('knob');
+  var readout = document.getElementById('readout');
+  var bars = { chat: document.getElementById('chatBar'), game: document.getElementById('gameBar') };
+  var dbs  = { chat: document.getElementById('chatDb'),  game: document.getElementById('gameDb')  };
+
+  function level(m, group) {
+    var v = group === 'game' ? 1 + m : 1 - m;
+    return Math.min(1, Math.max(0, v));
+  }
+
+  function render() {
+    var pct = Math.round(mix * 100);
+    knob.style.left = ((mix * 0.5 + 0.5) * 100) + '%';
+
+    var label, accent;
+    if (pct === 0)      { label = 'Balanced';                accent = '#9AA0AA'; }
+    else if (pct > 0)   { label = pct + '%  →  Game';   accent = '#34CD82'; }
+    else                { label = 'Chat  ←  ' + (-pct) + '%'; accent = '#4A89FF'; }
+
+    readout.textContent = label;
+    readout.style.color = accent;
+    knob.style.setProperty('--dot', accent);
+
+    ['chat', 'game'].forEach(function (g) {
+      var lv = level(mix, g);
+      bars[g].style.width = (lv * 100) + '%';
+      dbs[g].textContent = lv <= 0.001 ? '−∞ dB'
+                                       : (MIN_DB * (1 - lv)).toFixed(1).replace('-', '−') + ' dB';
+    });
+
+    dial.setAttribute('aria-valuenow', pct);
+    dial.setAttribute('aria-valuetext', label);
+  }
+
+  function setMix(v) {
+    v = Math.min(1, Math.max(-1, v));
+    if (Math.abs(v) < 0.04) v = 0; // the app snaps to centre too
+    mix = v;
+    render();
+  }
+
+  function fromPointer(clientX) {
+    var r = dial.getBoundingClientRect();
+    setMix(((clientX - r.left) / r.width) * 2 - 1);
+    rig.classList.add('touched');
+  }
+
+  var dragging = false;
+  dial.addEventListener('pointerdown', function (e) {
+    dragging = true;
+    dial.setPointerCapture(e.pointerId);
+    fromPointer(e.clientX);
+  });
+  dial.addEventListener('pointermove', function (e) { if (dragging) fromPointer(e.clientX); });
+  dial.addEventListener('pointerup',     function () { dragging = false; });
+  dial.addEventListener('pointercancel', function () { dragging = false; });
+
+  dial.addEventListener('keydown', function (e) {
+    var step = 0.1, handled = true;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown')       setMix(mix - step);
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp')   setMix(mix + step);
+    else if (e.key === 'Home')                                setMix(-1);
+    else if (e.key === 'End')                                 setMix(1);
+    else if (e.key === ' ' || e.key === 'Enter')              setMix(0);
+    else handled = false;
+    if (handled) { e.preventDefault(); rig.classList.add('touched'); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
