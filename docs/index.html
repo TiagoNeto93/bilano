@@ -115,12 +115,6 @@ a{color:var(--text)}
 }
 .knob::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--dot,#9AA0AA)}
 
-/* dB ruler — the real taper floor, not decoration */
-.ruler{
-  display:flex;justify-content:space-between;
-  font-family:var(--mono);font-size:.625rem;letter-spacing:.08em;
-  color:var(--faint);margin-top:.5rem;
-}
 .ends{
   display:flex;justify-content:space-between;
   font-family:var(--sans);font-size:.8125rem;font-weight:650;
@@ -129,15 +123,12 @@ a{color:var(--text)}
 .ends .c{color:var(--chat)}
 .ends .g{color:var(--game)}
 
-/* group levels in dB — the taper, stated */
-.glevels{
-  font-family:var(--mono);font-size:.6875rem;letter-spacing:.06em;
-  color:var(--faint);text-align:center;margin-top:1.25rem;
-  font-variant-numeric:tabular-nums;
-}
-
 /* app rows — same shape as the app's own: dot, name, chip / mute, trim, percent */
-.rows{margin-top:.75rem;display:grid;gap:.5rem}
+.rows{margin-top:1.25rem;display:grid;gap:.5rem}
+.note{
+  font-size:.75rem;line-height:1.5;color:var(--faint);
+  margin:.85rem 0 0;text-align:center;max-width:34rem;margin-inline:auto;
+}
 .row{background:#1C1C1C;border-radius:7px;padding:.55rem .65rem}
 .rline{display:flex;align-items:center;gap:.45rem}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--game);flex:none}
@@ -165,12 +156,14 @@ a{color:var(--text)}
 }
 .pct{flex:none;font-size:.6875rem;color:#AAA;width:2.4rem;text-align:right;font-variant-numeric:tabular-nums}
 .out{
-  flex:none;font-family:var(--mono);font-size:.625rem;color:var(--faint);
-  width:4.5rem;text-align:right;font-variant-numeric:tabular-nums;
+  flex:none;font-family:var(--sans);font-size:.75rem;font-weight:600;
+  color:var(--text);width:3.4rem;text-align:right;font-variant-numeric:tabular-nums;
 }
 @media (max-width:30rem){
   .rig{border-radius:12px}
-  .out{display:none} /* the trim percent already carries it on small screens */
+  /* the arrow column is the point of the demo — shrink the trim label, keep this */
+  .pct{width:2rem;font-size:.625rem}
+  .out{width:3rem;font-size:.6875rem}
 }
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
 
@@ -263,14 +256,15 @@ footer a:hover{color:var(--text)}
         </div>
       </div>
 
-      <div class="ruler"><span>&minus;40 dB</span><span>0 dB</span><span>&minus;40 dB</span></div>
-      <div class="ends"><span class="c">CHAT</span><span class="g">GAME</span></div>
+      <div class="ends"><span class="c">Chat</span><span class="g">Game</span></div>
 
-      <div class="glevels" id="glevels">CHAT 0.0 dB &nbsp;&middot;&nbsp; GAME &minus;14.0 dB</div>
-
-      <!-- Built by JS: each row's "out" is the full chain from audio.rs,
-           taper(group_level) x trim x (muted ? 0 : 1). -->
+      <!-- Built by JS. The arrow column is the full chain from audio.rs,
+           taper(group_level) x trim x (muted ? 0 : 1) — shown as a percent
+           because that is the only unit the app itself uses. -->
       <div class="rows" id="rows"></div>
+
+      <p class="note">The arrow is what each app ends up playing at. Bilano doesn't
+        show you that number — you just hear it. A web page can't turn your game down.</p>
 
       <p class="hint" id="hint">Drag the dial, a slider, or tap a chip</p>
     </div>
@@ -380,7 +374,6 @@ footer a:hover{color:var(--text)}
   var dial = document.getElementById('dial');
   var knob = document.getElementById('knob');
   var readout = document.getElementById('readout');
-  var glevels = document.getElementById('glevels');
   var rowsEl = document.getElementById('rows');
 
   // A plausible setup, not anyone's real one.
@@ -402,9 +395,6 @@ footer a:hover{color:var(--text)}
   function effective(app) {              // the chain from audio.rs
     if (app.muted) return 0;
     return taper(level(mix, app.chat ? 'chat' : 'game')) * app.trim;
-  }
-  function db(lv) {
-    return lv <= 0.001 ? '−∞ dB' : (MIN_DB * (1 - lv)).toFixed(1).replace('-', '−') + ' dB';
   }
 
   function buildRows() {
@@ -461,9 +451,6 @@ footer a:hover{color:var(--text)}
     readout.style.color = accent;
     knob.style.setProperty('--dot', accent);
 
-    glevels.innerHTML = 'CHAT ' + db(level(mix, 'chat')) +
-                        ' &nbsp;·&nbsp; GAME ' + db(level(mix, 'game'));
-
     apps.forEach(function (app) {
       var col = app.chat ? '#4A89FF' : '#34CD82';
       var chip = app.el.querySelector('.chip');
@@ -479,7 +466,7 @@ footer a:hover{color:var(--text)}
       app.el.querySelector('.trim i').style.background = app.muted ? '#5A5A5A' : col;
       app.el.querySelector('.trim b').style.left = (app.trim * 100) + '%';
       app.el.querySelector('.pct').textContent = Math.round(app.trim * 100) + '%';
-      app.el.querySelector('.out').textContent = 'out ' + Math.round(effective(app) * 100) + '%';
+      app.el.querySelector('.out').textContent = '→ ' + Math.round(effective(app) * 100) + '%';
     });
 
     dial.setAttribute('aria-valuenow', pct);
