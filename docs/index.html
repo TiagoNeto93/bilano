@@ -35,7 +35,11 @@ body{
   margin:0;background:var(--ink);color:var(--text);
   font-family:var(--sans);font-size:16px;line-height:1.6;
   -webkit-font-smoothing:antialiased;
+  overflow-x:clip; /* belt and braces; the real fixes are the min-width:0 rules below */
 }
+/* Grid and flex children default to min-width:auto, which for a replaced element
+   is its intrinsic width — that alone forces horizontal overflow on narrow screens. */
+.two>*,.meter>*,.dial,.track{min-width:0}
 .wrap{width:min(100% - 2.5rem,64rem);margin-inline:auto}
 
 /* ---- shared type ---- */
@@ -132,6 +136,11 @@ a{color:var(--text)}
   font-family:var(--mono);font-size:.75rem;text-decoration:none;
   text-align:right;color:var(--dim);font-variant-numeric:tabular-nums;
 }
+@media (max-width:30rem){
+  .meter{grid-template-columns:2.75rem 1fr 4.25rem;gap:.5rem}
+  .meter u{font-size:.6875rem}
+  .rig{border-radius:12px}
+}
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
 
 .hint{
@@ -154,7 +163,7 @@ a{color:var(--text)}
 section{padding:clamp(3rem,7vw,4.5rem) 0;border-top:1px solid var(--line)}
 .two{display:grid;gap:clamp(2rem,5vw,3.5rem);grid-template-columns:1fr}
 @media (min-width:52rem){.two{grid-template-columns:minmax(0,20rem) minmax(0,1fr);align-items:start}}
-.shot{width:100%;height:auto;border-radius:12px;border:1px solid var(--line);display:block}
+.shot{width:100%;max-width:100%;min-width:0;height:auto;border-radius:12px;border:1px solid var(--line);display:block}
 
 .steps{list-style:none;margin:0;padding:0;display:grid;gap:1.5rem;counter-reset:s}
 .steps li{padding-left:2.5rem;position:relative;color:var(--dim)}
@@ -211,14 +220,15 @@ footer a:hover{color:var(--text)}
 
     <!-- Working replica of the app's dial, running the same gain math as audio.rs -->
     <div class="rig" id="rig">
-      <div class="readout" id="readout" aria-live="polite">Balanced</div>
+      <!-- Opens off-centre so the meters differ on arrival: the fade is the point. -->
+      <div class="readout" id="readout" aria-live="polite" style="color:#4A89FF">Chat &nbsp;&larr;&nbsp; 35%</div>
 
       <div class="dial" id="dial" role="slider" tabindex="0"
            aria-label="Balance between chat and game audio"
-           aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" aria-valuetext="Balanced">
+           aria-valuemin="-100" aria-valuemax="100" aria-valuenow="-35" aria-valuetext="Chat 35%">
         <div class="track">
           <div class="notch"></div>
-          <div class="knob" id="knob" style="left:50%"></div>
+          <div class="knob" id="knob" style="left:32.5%;--dot:#4A89FF"></div>
         </div>
       </div>
 
@@ -233,8 +243,8 @@ footer a:hover{color:var(--text)}
         </div>
         <div class="meter">
           <b>GAME</b>
-          <div class="bar"><i id="gameBar" style="background:var(--game)"></i></div>
-          <u id="gameDb">0.0 dB</u>
+          <div class="bar"><i id="gameBar" style="background:var(--game);width:65%"></i></div>
+          <u id="gameDb">&minus;14.0 dB</u>
         </div>
       </div>
 
@@ -340,7 +350,7 @@ footer a:hover{color:var(--text)}
 (function () {
   // Mirrors src/audio.rs: group_level() + the dB taper, MIN_DB = -40.
   var MIN_DB = -40;
-  var mix = 0; // -1 = all Chat, +1 = all Game
+  var mix = -0.35; // -1 = all Chat, +1 = all Game; opens off-centre to show the fade
 
   var rig = document.getElementById('rig');
   var dial = document.getElementById('dial');
