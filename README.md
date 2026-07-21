@@ -7,6 +7,11 @@ driver, no installer, no runtime — a single 3 MB `.exe`.
 The name is from Latin *bilanx*, "two scale-pans" — the root of the word *balance*.
 One beam, a pan on each side.
 
+<p align="center">
+  <img src="docs/screenshot.png" width="380"
+       alt="The Bilano window: a blue-to-green gradient dial set to 'Chat 35%', above Chat and Game sections listing apps with individual volume sliders and mute buttons.">
+</p>
+
 - 🪶 **Tiny** — a single self-contained `.exe` (~3 MB). No installer, no drivers, no .NET.
 - 🎚️ **One dial** — slide from Game to Chat; the other side fades down, center = both full.
 - 🎧 **Per-app** — tag which apps are voice chat (Discord, etc.); everything else is "game".
@@ -77,4 +82,4 @@ notes and build gotchas.
 
 ## License
 
-Personal project — all rights reserved for now.
+[MIT](LICENSE) — use it, fork it, ship it. Just keep the copyright notice.

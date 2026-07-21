@@ -188,6 +188,24 @@ CI: `.github/workflows/ci.yml` runs build+test+clippy on push to `main` and on P
   `%APPDATA%\chatmix\config.json` existing, and the legacy dir is deleted after a
   successful copy, so each test needs the old state recreated first.
 
+## Regenerating `docs/screenshot.png`
+
+The app list is **live audio sessions merged with `Config::known_apps()`**, so a naive
+screenshot leaks whatever the owner happens to be running. To get a publishable shot:
+
+1. Back up `%APPDATA%\bilano\config.json`, then write a mock config whose demo app
+   names **sort alphabetically before** any real running app (rows are sorted by exe
+   name, so e.g. `apexlegends.exe`/`baldursgate3.exe` push `brave.exe` below the fold).
+   Live sessions can't be suppressed any other way. The group counts (`GAME · 6`) still
+   reflect reality — numbers, not names.
+2. Capture: `Get-Process bilano` → `MainWindowHandle` (do **not** hand-roll a
+   `FindWindowW` P/Invoke — a `DllImport` without `CharSet=Unicode` marshals ANSI and
+   silently never matches the wide function), then `DwmGetWindowAttribute(hwnd, 9, ...)`
+   for the true frame rect and `Graphics.CopyFromScreen`.
+3. Afterwards run once with `mix: 0.0` to drive every app back to 100% before restoring
+   the real config — `Stop-Process` skips the engine's restore-on-quit, so a demo mix
+   would otherwise be left applied to the owner's apps.
+
 ## Decisions & future work
 
 - Chosen: session-volume ducking (no driver) + Rust/windows-rs + eframe. Deliberately
