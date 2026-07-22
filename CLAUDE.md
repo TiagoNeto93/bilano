@@ -254,6 +254,11 @@ When a check disagrees with expectations, suspect the check first.
     child, so `.row:nth-child(1)` matches nothing and the test hangs for 30s.
   - **Test against the deployed URL for anything network-related.** The GoatCounter tag uses
     a protocol-relative `src`, which resolves to `file://` locally and never fires.
+- **GitHub's code-scanning API advertises a language it won't accept.**
+  `GET /repos/:o/:r/code-scanning/default-setup` reported `languages: ["actions","rust"]`
+  for this repo; the matching `PATCH` rejects `rust` with a 422 listing the real set
+  (Rust is advanced-setup/preview only). The read endpoint reports *detected* languages,
+  not *configurable* ones. Don't infer support from it — attempt the write.
 - **A running instance transiently locks files in `dist/`** — writes fail with
   EPERM/Access-denied, and it once aborted a `git checkout` with "Invalid argument".
   `Stop-Process -Name bilano` before touching `dist/`, not just before rebuilding.
