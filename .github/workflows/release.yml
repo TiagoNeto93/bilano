@@ -89,7 +89,7 @@ jobs:
             '',
             '### Install',
             '',
-            'Download the zip below, unzip it, run ``bilano.exe``. There is no installer.',
+            'Download the zip below, unzip it, run `bilano.exe`. There is no installer.',
             '',
             'Bilano is not code-signed, so **SmartScreen will warn you the first time** - choose',
             '**More info**, then **Run anyway**. Some antivirus software quarantines unsigned',
@@ -102,7 +102,7 @@ jobs:
             "Get-FileHash .\Bilano-$tag-win64.zip -Algorithm SHA256",
             '```',
             '',
-            'Compare that with ``SHA256SUMS.txt`` below. Every release is built by GitHub',
+            'Compare that with `SHA256SUMS.txt` below. Every release is built by GitHub',
             'Actions from the tag - nothing is uploaded from a personal machine.'
           )
           if ($prev) {
