@@ -1,0 +1,4 @@
+# Git hooks are run by sh. With core.autocrlf=true (the Windows default) they
+# would be checked out with CRLF, and `#!/bin/sh\r` is not a valid interpreter -
+# the hook then fails, or silently does nothing, on a fresh clone.
+.githooks/** text eol=lf
