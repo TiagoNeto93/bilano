@@ -374,6 +374,10 @@ footer a:hover{color:var(--text)}
       <a href="https://github.com/TiagoNeto93/bilano/releases/latest">Releases</a> &middot;
       <a href="https://github.com/TiagoNeto93/bilano/issues">Report a problem</a>
     </p>
+    <p class="fine">
+      Page views are counted with <a href="https://www.goatcounter.com">GoatCounter</a>:
+      no cookies, no personal data, nothing sold.
+    </p>
   </div>
 </footer>
 
@@ -521,5 +525,10 @@ footer a:hover{color:var(--text)}
   render();
 })();
 </script>
+
+<!-- Cookieless page counting. Protocol-relative src, so this only fires over
+     http(s) — opening the file locally will not register a hit. -->
+<script data-goatcounter="https://bilano.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
