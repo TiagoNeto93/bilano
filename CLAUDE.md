@@ -171,7 +171,32 @@ tray/hotkey/window behavior — they need a real desktop + audio sessions and ar
 verified by running the app (every real bug we hit was found that way, see below).
 
 CI: `.github/workflows/ci.yml` runs build+test+clippy on push to `main` and on PRs.
-`release.yml` also runs `cargo test` before building, so a broken tag never publishes.
+`release.yml` also runs `cargo test` before building, so a broken tag never publishes,
+and publishes `SHA256SUMS.txt` beside the zip (the exe is unsigned — see `SECURITY.md`).
+
+## Repo security settings & the Linux-only Dependabot alerts
+
+Enabled on the repo (settings, not files): Dependabot alerts + security updates,
+secret scanning + push protection, private vulnerability reporting, CodeQL.
+CodeQL covers **`actions` only** — its default setup rejects `rust` (see the trap
+list below), and Rust dependency risk is Dependabot's job anyway.
+
+**Expect recurring false-positive alerts on Linux-only crates, and dismiss them as
+"not used".** `tray-icon` declares `libappindicator`/`gtk` under
+`cfg(target_os = "linux")`, so GTK and `glib` land in `Cargo.lock` but are never
+compiled for a Windows target. Dependabot reads the lockfile without target
+awareness and can't tell. Confirm before dismissing with:
+
+```powershell
+cargo tree --invert <crate> --edges normal     # host target: "nothing to print" = not in our build
+cargo tree --invert <crate> --edges normal --target all   # shows the Linux-only path
+```
+
+There is also **no upgrade path** for the GTK stack: `libappindicator` 0.9.0 is the
+newest and pins `glib`/`gtk` `^0.18`, which is the final GTK3 binding line, while the
+`glib` advisories are fixed in 0.20 (GTK4 era). Even `tray-icon` 0.24 still depends on
+`libappindicator ^0.9`. Bumping crates will not clear these — dismissal is the correct
+and only answer.
 
 ## Testing tips (no human clicks needed for most of it)
 
