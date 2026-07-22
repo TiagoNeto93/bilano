@@ -300,11 +300,20 @@ impl eframe::App for App {
                     ui.add_space(4.0);
                     ui.vertical(|ui| {
                         ui.label(RichText::new("Bilano").size(21.0).strong());
-                        ui.label(
-                            RichText::new("game ↔ voice balance")
-                                .size(11.0)
-                                .color(Color32::from_gray(140)),
-                        );
+                        // Version sits next to the tagline so a user can answer
+                        // "which version are you on?" without hunting for the zip.
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                RichText::new("game ↔ voice balance")
+                                    .size(11.0)
+                                    .color(Color32::from_gray(140)),
+                            );
+                            ui.label(
+                                RichText::new(concat!("v", env!("CARGO_PKG_VERSION")))
+                                    .size(11.0)
+                                    .color(Color32::from_gray(105)),
+                            );
+                        });
                     });
                 });
 

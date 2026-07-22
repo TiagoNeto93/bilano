@@ -69,7 +69,9 @@ pub fn spawn(
     thread::spawn(move || unsafe {
         let mut tray = Some(
             TrayIconBuilder::new()
-                .with_tooltip("Bilano — game vs chat balance")
+                // Tooltip only — the *window* title must stay exactly "Bilano",
+                // since find/show/hide and single-instance match on it.
+                .with_tooltip(concat!("Bilano v", env!("CARGO_PKG_VERSION"), " — game vs chat balance"))
                 .with_menu_on_left_click(false) // left-click opens UI; right-click shows menu
                 .with_icon(tray_icon::Icon::from_rgba(icon::rgba(32), 32, 32).expect("icon"))
                 .build()

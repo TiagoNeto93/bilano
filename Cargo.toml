@@ -26,6 +26,10 @@ global-hotkey = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+[build-dependencies]
+# Embeds the VERSIONINFO resource (see build.rs). The maintained fork of winres.
+winresource = "0.1"
+
 [profile.release]
 opt-level = "z"
 lto = true

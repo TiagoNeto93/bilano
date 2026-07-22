@@ -109,6 +109,13 @@ Shared state:
 | `src/single.rs`| Named-mutex single instance; 2nd launch surfaces the running window |
 | `src/config.rs`| `Config` (serde), `%APPDATA%\bilano\config.json`, v1.x config migration |
 | `src/icon.rs`  | Procedural anti-aliased app/tray icon (4× supersample), no bundled asset |
+| `build.rs`     | Embeds the Windows VERSIONINFO resource (`winresource`) from `CARGO_PKG_VERSION` |
+
+**Version is written in exactly one place: `Cargo.toml`.** `build.rs` embeds it as a
+VERSIONINFO resource (Explorer's Details tab, `(Get-Item bilano.exe).VersionInfo`),
+and the UI header and tray tooltip read `env!("CARGO_PKG_VERSION")`. It survives
+`strip = true` — that strips symbols, not `.rsrc`. Don't hardcode a version anywhere
+else, and **never put it in the window title**, which must stay exactly `"Bilano"`.
 
 Hotkeys: `Ctrl+Alt+←` Chat · `Ctrl+Alt+→` Game · `Ctrl+Alt+↓` Center (step 0.1).
 
