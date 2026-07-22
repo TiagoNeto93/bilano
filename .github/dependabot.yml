@@ -1,0 +1,24 @@
+version: 2
+
+# Deliberately narrow. Dependabot *security* alerts and fixes are enabled in the
+# repository settings and cover Cargo via the RustSec advisory database, so they
+# need no configuration here and only open a PR when there is a real advisory.
+#
+# Scheduled *version* updates for Cargo are intentionally NOT enabled: the lock
+# file has ~345 crates behind eframe and windows-rs, and routine bumps of those
+# would be pure noise for a project this size (a broken eframe upgrade costs far
+# more than being a few patch versions behind). Update Rust deps by hand with
+# `cargo update` when there's a reason to.
+#
+# GitHub Actions is the opposite case: three or four pinned actions, and a stale
+# one silently keeps running an old Node until someone notices (it happened in
+# 3d86c27). Monthly is plenty.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"
+    labels:
+      - dependencies

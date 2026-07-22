@@ -1,0 +1,34 @@
+name: Feature request
+description: Suggest something Bilano should do
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Worth knowing before you write: Bilano stays small on purpose. It ducks
+        per-app volumes through the Windows audio API rather than creating a
+        virtual audio device, which is why it's a single 3 MB exe with nothing to
+        install. Ideas that would require a driver or an installer are very
+        unlikely to happen — but say so anyway if it's the right idea.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: What are you trying to do that's awkward or impossible today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What should it do?
+      description: How you picture it working. A rough sketch is fine.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you've tried instead?
+      description: Workarounds, other tools, or a different approach you considered.

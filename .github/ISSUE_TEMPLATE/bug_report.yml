@@ -1,0 +1,98 @@
+name: Bug report
+description: Something doesn't work the way it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. The fields below are the ones that usually
+        decide whether a problem can be reproduced — most Bilano bugs turn out to
+        depend on the specific machine rather than the code.
+
+        **Found a security problem?** Please report it privately instead:
+        [Report a vulnerability](https://github.com/TiagoNeto93/bilano/security/advisories/new).
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: What part of the app?
+      options:
+        - The dial / volume balance
+        - Global hotkeys
+        - Tray icon or menu
+        - The app list (tagging, per-app volume, mute)
+        - Start with Windows
+        - It won't launch at all
+        - Upgrading from a 1.x install
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect instead?
+      placeholder: |
+        Dragging toward Game faded the game down instead of chat.
+        I expected the chat apps to fade.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start a voice call and a game
+        2. Tag the voice app as Chat
+        3. Drag the dial fully toward Game
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Bilano version
+      description: The version in the zip you downloaded, e.g. v2.0.0.
+      placeholder: v2.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: "Press Win+R, run `winver`, and paste the line with the build number."
+      placeholder: Windows 11 Pro 24H2 (build 26100.4061)
+    validations:
+      required: true
+
+  - type: input
+    id: antivirus
+    attributes:
+      label: Antivirus / security software
+      description: >
+        Relevant more often than you'd think. Bilano is unsigned, and some
+        products quarantine it silently — which looks like "it won't launch"
+        rather than a warning.
+      placeholder: Windows Defender only / Norton 360 / none
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Your config (optional)
+      description: >
+        Contents of `%APPDATA%\bilano\config.json`. Useful for tagging and
+        per-app volume bugs. Note it lists the executable names of apps you run —
+        remove any you'd rather not post.
+      render: json
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I'm on the latest release
+          required: true
+        - label: I searched existing issues
+          required: true

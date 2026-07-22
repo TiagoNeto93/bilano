@@ -1,0 +1,13 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Windows warned me / my antivirus flagged it
+    url: https://github.com/TiagoNeto93/bilano#install
+    about: >
+      Expected — the exe isn't code-signed. Choose More info, then Run anyway,
+      and allow the folder in your antivirus if it quarantined the file.
+  - name: Try it before you download
+    url: https://tiagoneto93.github.io/bilano/
+    about: The website has a working version of the dial in the browser.
+  - name: Report a security vulnerability
+    url: https://github.com/TiagoNeto93/bilano/security/advisories/new
+    about: Please report anything exploitable privately, not as a public issue.
