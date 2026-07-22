@@ -205,6 +205,11 @@ When a check disagrees with expectations, suspect the check first.
   message containing double quotes gets split into pathspecs. Write the message to a file
   and use `git commit -F`. Same class of problem breaks `gh --jq` expressions containing
   spaces — use `ConvertFrom-Json` and pipe through PowerShell instead.
+- **`.ps1` files must be ASCII, or UTF-8 *with* a BOM.** PS 5.1 reads a BOM-less UTF-8
+  script as ANSI, so an em-dash decodes to `â€"` whose last byte is U+201D — a smart
+  quote, which PowerShell honours as a **string delimiter**. One dash inside a comment
+  terminated a string and produced twelve unrelated parse errors in a helper script.
+  Keep `.ps1` files ASCII-only.
 - **Neither `Set-Content` encoding is safe for commit messages.** `-Encoding utf8` writes a
   BOM that lands *inside* the subject line; `-Encoding ascii` silently turns every em-dash
   and curly quote into `?`. Both were shipped before being spotted. Write the file with

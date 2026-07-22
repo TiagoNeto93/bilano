@@ -5,6 +5,9 @@
 /dist/*.exe
 /dist/*.zip
 
+# Personal tooling: traction numbers are the owner's business, not the product's
+/scripts/
+
 # Editor / OS cruft
 *.pdb
 .vs/

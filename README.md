@@ -22,6 +22,9 @@ One beam, a pan on each side.
 Same idea as the game/chat balance dial built into some gaming headsets — but done
 in software, so it works with any headset and there's nothing to install.
 
+If you came here looking for **chatmix** for a headset that doesn't have it, or
+without installing a vendor audio driver to get it: that's what this is.
+
 **[bilano website →](https://tiagoneto93.github.io/bilano/)** — try the dial in your
 browser before you download anything.
 
