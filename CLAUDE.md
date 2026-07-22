@@ -181,6 +181,14 @@ CI: `.github/workflows/ci.yml` runs build+test+clippy on push to `main` and on P
 `release.yml` also runs `cargo test` before building, so a broken tag never publishes,
 and publishes `SHA256SUMS.txt` beside the zip (the exe is unsigned — see `SECURITY.md`).
 
+**Release descriptions come from `CHANGELOG.md`.** `release.yml` extracts the
+`## [X.Y.Z]` section for the tag and appends a standard install/verify footer; with
+no matching section it falls back to `--generate-notes` (a bare compare link) rather
+than failing. So: **add the section before tagging.** Two traps baked into that step —
+read the file with `Get-Content -Encoding UTF8` (Windows PowerShell would mangle every
+dash), and no here-strings, since a closing `'@` can't sit at column 0 inside a YAML
+block scalar.
+
 ## Repo security settings & the Linux-only Dependabot alerts
 
 Enabled on the repo (settings, not files): Dependabot alerts + security updates,

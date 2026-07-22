@@ -15,6 +15,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # needs tags to work out the previous one for the compare link
 
       - name: Ensure Rust stable (MSVC)
         run: rustup toolchain install stable --profile minimal --no-self-update
@@ -43,15 +45,91 @@ jobs:
             ForEach-Object { "{0}  {1}" -f $_.Hash.ToLower(), (Split-Path $_.Path -Leaf) } |
             Out-File -FilePath SHA256SUMS.txt -Encoding ascii
 
+      # The release description comes from CHANGELOG.md, written for the person
+      # deciding whether to download, plus a standard install/verify footer. If
+      # the tag has no section, fall back to generated notes rather than failing
+      # the release. NOTE: no PowerShell here-strings - their closing '@ must sit
+      # at column 0, which YAML block indentation makes impossible.
+      - name: Build release notes
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag -replace '^v', ''
+          $body = ''
+          if (Test-Path CHANGELOG.md) {
+            # -Encoding explicit: Windows PowerShell reads BOM-less UTF-8 as ANSI
+            # and would mangle every dash and quote in the notes.
+            $lines = Get-Content CHANGELOG.md -Encoding UTF8
+            $start = -1
+            $end = $lines.Count
+            for ($i = 0; $i -lt $lines.Count; $i++) {
+              if ($start -lt 0) {
+                if ($lines[$i] -match ('^##\s+\[' + [regex]::Escape($ver) + '\]')) { $start = $i + 1 }
+              } elseif ($lines[$i] -match '^##\s') {
+                $end = $i
+                break
+              }
+            }
+            if ($start -ge 0 -and $start -lt $end) {
+              $body = ($lines[$start..($end - 1)] -join "`n").Trim()
+            }
+          }
+          if (-not $body) {
+            Write-Host "::warning::No CHANGELOG.md section for $ver - using generated notes."
+            exit 0
+          }
+
+          $tags = @(git tag --sort=-v:refname)
+          $idx = [Array]::IndexOf($tags, $tag)
+          $prev = if ($idx -ge 0 -and ($idx + 1) -lt $tags.Count) { $tags[$idx + 1] } else { '' }
+
+          $footer = @(
+            '',
+            '---',
+            '',
+            '### Install',
+            '',
+            'Download the zip below, unzip it, run ``bilano.exe``. There is no installer.',
+            '',
+            'Bilano is not code-signed, so **SmartScreen will warn you the first time** - choose',
+            '**More info**, then **Run anyway**. Some antivirus software quarantines unsigned',
+            'programs without asking, which looks like the app simply not starting; if that',
+            'happens, allow the folder.',
+            '',
+            '### Verify your download',
+            '',
+            '```powershell',
+            "Get-FileHash .\Bilano-$tag-win64.zip -Algorithm SHA256",
+            '```',
+            '',
+            'Compare that with ``SHA256SUMS.txt`` below. Every release is built by GitHub',
+            'Actions from the tag - nothing is uploaded from a personal machine.'
+          )
+          if ($prev) {
+            $footer += @(
+              '',
+              "**Full commit history:** https://github.com/${{ github.repository }}/compare/$prev...$tag"
+            )
+          }
+
+          $notes = $body + "`n" + ($footer -join "`n") + "`n"
+          [System.IO.File]::WriteAllText(
+            (Join-Path $PWD 'RELEASE_NOTES.md'),
+            $notes,
+            (New-Object System.Text.UTF8Encoding($false)))
+          Write-Host "--- release notes ---"
+          Write-Host $notes
+
       - name: Publish release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "${{ github.ref_name }}"
-          # Create the release with auto-generated notes; if it already exists,
-          # just (re)upload the asset.
-          gh release create "$tag" "$env:ZIP" SHA256SUMS.txt --title "Bilano $tag" --generate-notes
+          $notesArg = if (Test-Path RELEASE_NOTES.md) { @('--notes-file', 'RELEASE_NOTES.md') } else { @('--generate-notes') }
+          # Create the release; if it already exists, refresh its notes and assets.
+          gh release create "$tag" "$env:ZIP" SHA256SUMS.txt --title "Bilano $tag" @notesArg
           if ($LASTEXITCODE -ne 0) {
+            gh release edit "$tag" @notesArg
             gh release upload "$tag" "$env:ZIP" SHA256SUMS.txt --clobber
           }
