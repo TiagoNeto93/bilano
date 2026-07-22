@@ -17,15 +17,16 @@
 
 <style>
 :root{
-  --ink:#101114;      /* page — a shade under the app's panel so the app sits on top of it */
-  --panel:#16171A;    /* the app's own background */
-  --raise:#1C1E22;
+  --ink:#101114;      /* page — a shade under the app's own background */
+  --panel:#16171A;    /* the app's window fill, Color32::from_rgb(22,23,26) */
+  --row:#1C1C1C;      /* the app's row fill, Color32::from_gray(28) */
   --line:#26282E;
-  --text:#E4E6EA;
+  --text:#E1E1E1;     /* the app's override_text_color, gray(225) */
   --dim:#8A8F98;
   --faint:#5C616B;
-  --chat:#4A89FF;     /* the app's Chat blue */
-  --game:#34CD82;     /* the app's Game green */
+  --chat:#4A89FF;     /* BLUE  in main.rs */
+  --game:#34CD82;     /* GREEN in main.rs */
+  --red:#C44242;      /* RED   in main.rs */
   --sans:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,"Inter",sans-serif;
   --mono:"Cascadia Mono",Consolas,ui-monospace,"SF Mono",Menlo,monospace;
 }
@@ -34,24 +35,18 @@ html{-webkit-text-size-adjust:100%}
 body{
   margin:0;background:var(--ink);color:var(--text);
   font-family:var(--sans);font-size:16px;line-height:1.6;
-  -webkit-font-smoothing:antialiased;
-  overflow-x:clip; /* belt and braces; the real fixes are the min-width:0 rules below */
+  -webkit-font-smoothing:antialiased;overflow-x:clip;
 }
-/* Grid and flex children default to min-width:auto, which for a replaced element
-   is its intrinsic width — that alone forces horizontal overflow on narrow screens. */
-.two>*,.meter>*,.dial,.track{min-width:0}
-.wrap{width:min(100% - 2.5rem,64rem);margin-inline:auto}
+/* Grid/flex children default to min-width:auto — for replaced elements that is
+   their intrinsic width, which forces overflow on narrow screens. */
+.two>*,.hero>*{min-width:0}
+.wrap{width:min(100% - 2.5rem,68rem);margin-inline:auto}
 
-/* ---- shared type ---- */
 .eyebrow{
   font-family:var(--mono);font-size:.6875rem;font-weight:600;
-  letter-spacing:.18em;text-transform:uppercase;color:var(--faint);
-  margin:0 0 1.25rem;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--faint);margin:0 0 1.25rem;
 }
-h2{
-  font-size:clamp(1.4rem,3vw,1.85rem);font-weight:650;letter-spacing:-.02em;
-  margin:0 0 1rem;line-height:1.25;
-}
+h2{font-size:clamp(1.4rem,3vw,1.85rem);font-weight:650;letter-spacing:-.02em;margin:0 0 1rem;line-height:1.25}
 p{margin:0 0 1rem;color:var(--dim)}
 a{color:var(--text)}
 :focus-visible{outline:2px solid var(--chat);outline-offset:3px;border-radius:4px}
@@ -65,137 +60,136 @@ a{color:var(--text)}
   background:linear-gradient(105deg,var(--chat),var(--game));
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);
 }
-.top a{
-  font-family:var(--mono);font-size:.75rem;letter-spacing:.06em;
-  color:var(--dim);text-decoration:none;
-}
+.top a{font-family:var(--mono);font-size:.75rem;letter-spacing:.06em;color:var(--dim);text-decoration:none}
 .top a:hover{color:var(--text)}
 
-/* ---- hero ---- */
-.hero{padding:clamp(3rem,8vw,5.5rem) 0 clamp(2.5rem,6vw,4rem)}
+/* ---- hero: pitch on the left, the actual app on the right ---- */
+.hero{
+  padding:clamp(2.5rem,6vw,4.5rem) 0;
+  display:grid;gap:clamp(2.5rem,5vw,4rem);grid-template-columns:1fr;align-items:start;
+}
+@media (min-width:60rem){.hero{grid-template-columns:minmax(0,1fr) 25rem}}
 .hero h1{
-  font-size:clamp(2rem,5.4vw,3.5rem);font-weight:680;line-height:1.05;
-  letter-spacing:-.035em;margin:0 0 1.25rem;max-width:19ch;
+  font-size:clamp(2rem,4.6vw,3.25rem);font-weight:680;line-height:1.06;
+  letter-spacing:-.035em;margin:0 0 1.25rem;max-width:18ch;
 }
 .hero h1 b{font-weight:680;color:var(--chat)}
 .hero h1 i{font-style:normal;color:var(--game)}
-.lede{font-size:clamp(1rem,2vw,1.125rem);max-width:52ch;margin-bottom:0}
-
-/* ---- the dial: the one loud thing on this page ---- */
-.rig{
-  margin:clamp(2.25rem,5vw,3.25rem) 0 0;padding:clamp(1.25rem,3vw,2rem);
-  background:var(--panel);border:1px solid var(--line);border-radius:14px;
-  max-width:44rem;
-}
-/* The rig is a replica of the app, so it uses the app's own face (Segoe UI),
-   not the page's monospace furniture. Mono stays for the dB scale, which is
-   instrumentation this page adds rather than something the app shows. */
-.readout{
-  font-family:var(--sans);font-size:1.125rem;font-weight:650;
-  text-align:center;letter-spacing:-.01em;margin-bottom:1rem;min-height:1.6em;
-}
-.dial{
-  position:relative;height:2.75rem;cursor:grab;touch-action:none;
-  display:flex;align-items:center;
-}
-.dial:active{cursor:grabbing}
-.track{
-  position:relative;height:12px;width:100%;border-radius:6px;
-  background:linear-gradient(90deg,var(--chat),var(--game));
-}
-.notch{
-  position:absolute;left:50%;top:-5px;bottom:-5px;width:1.5px;
-  background:rgba(255,255,255,.32);transform:translateX(-50%);
-}
-.knob{
-  position:absolute;top:50%;width:22px;height:22px;border-radius:50%;
-  background:#FAFAFC;transform:translate(-50%,-50%);pointer-events:none;
-  box-shadow:0 2px 6px rgba(0,0,0,.55),inset 0 0 0 1px rgba(0,0,0,.28);
-  display:grid;place-items:center;
-}
-.knob::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--dot,#9AA0AA)}
-
-.ends{
-  display:flex;justify-content:space-between;
-  font-family:var(--sans);font-size:.8125rem;font-weight:650;
-  margin-top:.75rem;
-}
-.ends .c{color:var(--chat)}
-.ends .g{color:var(--game)}
-
-/* app rows — same shape as the app's own: dot, name, chip / mute, trim, percent */
-.rows{margin-top:1.25rem;display:grid;gap:.5rem}
-.note{
-  font-size:.75rem;line-height:1.5;color:var(--faint);
-  margin:.85rem 0 0;text-align:center;max-width:34rem;margin-inline:auto;
-}
-.row{background:#1C1C1C;border-radius:7px;padding:.55rem .65rem}
-.rline{display:flex;align-items:center;gap:.45rem}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--game);flex:none}
-.dot.idle{background:#505050}
-.exe{font-size:.8125rem;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chip{
-  margin-left:auto;flex:none;font-family:var(--sans);font-size:.625rem;font-weight:700;
-  border:0;border-radius:5px;min-width:46px;padding:.22rem .5rem;cursor:pointer;
-}
-.chip.isChat{background:var(--chat);color:#fff}
-.chip.isGame{background:#3C3C3C;color:#C8C8C8}
-.rline+.rline{margin-top:.45rem}
-.mute{
-  flex:none;font-family:var(--sans);font-size:.6875rem;font-weight:700;
-  border:0;border-radius:5px;width:26px;height:18px;cursor:pointer;
-  background:#373737;color:#AFAFAF;
-}
-.mute.on{background:#C44242;color:#fff}
-.trim{position:relative;flex:1;height:16px;min-width:0;cursor:pointer;touch-action:none}
-.trim s{position:absolute;top:50%;left:0;right:0;height:6px;border-radius:3px;background:#323232;transform:translateY(-50%);text-decoration:none}
-.trim i{position:absolute;top:50%;left:0;height:6px;border-radius:3px;transform:translateY(-50%)}
-.trim b{
-  position:absolute;top:50%;width:12px;height:12px;border-radius:50%;
-  background:#F5F5F8;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,.5);
-}
-.pct{flex:none;font-size:.6875rem;color:#AAA;width:2.4rem;text-align:right;font-variant-numeric:tabular-nums}
-.out{
-  flex:none;font-family:var(--sans);font-size:.75rem;font-weight:600;
-  color:var(--text);width:3.4rem;text-align:right;font-variant-numeric:tabular-nums;
-}
-@media (max-width:30rem){
-  .rig{border-radius:12px}
-  /* the arrow column is the point of the demo — shrink the trim label, keep this */
-  .pct{width:2rem;font-size:.625rem}
-  .out{width:3rem;font-size:.6875rem}
-}
-@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
-
-.hint{
-  font-family:var(--mono);font-size:.6875rem;letter-spacing:.1em;
-  text-transform:uppercase;color:var(--faint);text-align:center;margin:1.25rem 0 0;
-}
-.rig.touched .hint{visibility:hidden}
-
-/* ---- calls to action ---- */
-.cta{display:flex;flex-wrap:wrap;align-items:center;gap:1rem;margin-top:2rem}
+.lede{font-size:clamp(1rem,1.6vw,1.0625rem);max-width:46ch}
+.cta{display:flex;flex-wrap:wrap;align-items:center;gap:1rem;margin-top:1.75rem}
 .btn{
-  display:inline-block;background:var(--text);color:var(--ink);
-  font-weight:650;font-size:.9375rem;letter-spacing:-.01em;
-  padding:.8rem 1.5rem;border-radius:9px;text-decoration:none;
+  display:inline-block;background:var(--text);color:var(--ink);font-weight:650;
+  font-size:.9375rem;letter-spacing:-.01em;padding:.8rem 1.5rem;border-radius:9px;text-decoration:none;
 }
 .btn:hover{background:#fff}
 .spec{font-family:var(--mono);font-size:.75rem;color:var(--faint);letter-spacing:.06em}
 
-/* ---- sections ---- */
-section{padding:clamp(3rem,7vw,4.5rem) 0;border-top:1px solid var(--line)}
-.two{display:grid;gap:clamp(2rem,5vw,3.5rem);grid-template-columns:1fr}
-@media (min-width:52rem){.two{grid-template-columns:minmax(0,20rem) minmax(0,1fr);align-items:start}}
-.shot{width:100%;max-width:100%;min-width:0;height:auto;border-radius:12px;border:1px solid var(--line);display:block}
+/* =======================================================================
+   The replica. Every value below mirrors src/main.rs so this looks and
+   behaves like the real window, not an impression of it.
+   ======================================================================= */
+.app{
+  background:var(--panel);border:1px solid #2A2C31;border-radius:10px;
+  overflow:hidden;max-width:25rem;font-size:14px;line-height:1.4;
+  box-shadow:0 18px 50px rgba(0,0,0,.5);
+}
+.chrome{
+  display:flex;align-items:center;gap:.5rem;height:2rem;padding:0 .25rem 0 .6rem;
+  background:#101114;border-bottom:1px solid #26282E;
+}
+.chrome .ic{width:12px;height:12px;border-radius:3px;background:linear-gradient(105deg,var(--chat),var(--game));flex:none}
+.chrome .t{font-size:.75rem;color:#C8C8C8}
+.chrome .btns{margin-left:auto;display:flex;color:#9A9A9A;font-size:.6875rem}
+.chrome .btns i{font-style:normal;width:1.9rem;text-align:center;line-height:2rem}
+.body{padding:12px 16px}
 
+/* header: icon 36px, "Bilano" 21, subtitle 11 gray(140) */
+.ahead{display:flex;align-items:center;gap:.65rem;margin-bottom:14px}
+.ahead .icon{
+  width:36px;height:36px;border-radius:9px;flex:none;
+  background:linear-gradient(120deg,var(--chat),var(--game));
+  display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);
+}
+.ahead .icon s{width:14px;height:14px;border-radius:50%;background:#101114;text-decoration:none;display:block}
+.ahead h3{margin:0;font-size:21px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
+.ahead p{margin:0;font-size:11px;color:#8C8C8C}
+
+/* readout: size 16 strong, coloured by side */
+.readout{text-align:center;font-size:16px;font-weight:650;margin-bottom:6px}
+
+/* the dial: track 12px, knob r=11 with a 3.5 accent dot, centre tick */
+.dial{position:relative;height:40px;display:flex;align-items:center;cursor:grab;touch-action:none}
+.dial:active{cursor:grabbing}
+.track{position:relative;height:12px;width:100%;border-radius:6px;background:linear-gradient(90deg,var(--chat),var(--game))}
+.notch{position:absolute;left:50%;top:-4px;bottom:-4px;width:1.5px;background:rgba(255,255,255,.27);transform:translateX(-50%)}
+.knob{
+  position:absolute;top:50%;width:22px;height:22px;border-radius:50%;background:#FAFAFC;
+  transform:translate(-50%,-50%);pointer-events:none;display:grid;place-items:center;
+  box-shadow:0 2px 5px rgba(0,0,0,.45),inset 0 0 0 1px rgba(0,0,0,.2);
+}
+.knob::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--dot,#969696)}
+.ends{display:flex;justify-content:space-between;font-size:12px;font-weight:650}
+.ends .c{color:var(--chat)}
+.ends .g{color:var(--game)}
+
+/* the three nudge buttons */
+.nudge{display:flex;gap:6px;margin-top:10px}
+.nudge button{
+  flex:1;height:26px;border:0;border-radius:7px;background:#282828;color:var(--text);
+  font-family:var(--sans);font-size:13px;cursor:pointer;
+}
+.nudge button:hover{background:#343434}
+.hint1{text-align:center;font-size:10px;color:#787878;margin:4px 0 0}
+.hint2{font-size:10px;color:#737373;margin:10px 0 8px}
+
+/* section headers — the part that was missing: CHAT · n / GAME · n */
+.sec{display:flex;align-items:baseline;gap:.35rem;margin:0 0 3px}
+.sec b{font-size:11px;font-weight:700}
+.sec b.c{color:var(--chat)}
+.sec b.g{color:var(--game)}
+.sec span{font-size:11px;color:#6E6E6E}
+.none{font-size:11px;font-style:italic;color:#5F5F5F;margin:0 0 10px;padding-left:.75rem}
+.group{margin-bottom:10px}
+
+/* rows: gray(28) fill, 7px rounding, 9x6 inner margin */
+.row{background:var(--row);border-radius:7px;padding:6px 9px;margin-bottom:5px}
+.rline{display:flex;align-items:center;gap:6px}
+.rline+.rline{margin-top:4px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--game);flex:none}
+.dot.idle{background:#505050}
+.exe{font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip{
+  margin-left:auto;flex:none;font-family:var(--sans);font-size:10px;font-weight:700;
+  border:0;border-radius:5px;min-width:46px;height:18px;cursor:pointer;padding:0 6px;
+}
+.chip.isChat{background:var(--chat);color:#fff}
+.chip.isGame{background:#3C3C3C;color:#C8C8C8}
+.mute{
+  flex:none;font-family:var(--sans);font-size:11px;font-weight:700;border:0;border-radius:5px;
+  width:26px;height:18px;cursor:pointer;background:#373737;color:#AFAFAF;
+}
+.mute.on{background:var(--red);color:#fff}
+.trim{position:relative;flex:1;height:16px;min-width:0;cursor:pointer;touch-action:none}
+.trim s{position:absolute;top:50%;left:0;right:0;height:6px;border-radius:3px;background:#323232;transform:translateY(-50%);text-decoration:none}
+.trim i{position:absolute;top:50%;left:0;height:6px;border-radius:3px;transform:translateY(-50%)}
+.trim b{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:#F5F5F8;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.pct{flex:none;font-size:11px;color:#AAA;width:2.6rem;text-align:right;font-variant-numeric:tabular-nums}
+
+/* the page's own annotation — deliberately outside the window */
+.applied{margin:1rem 0 0;font-size:.75rem;line-height:1.55;color:var(--faint);max-width:25rem}
+.applied b{color:var(--dim);font-weight:600}
+.applied code{font-family:var(--mono);color:var(--dim)}
+
+/* ---- page sections ---- */
+section{padding:clamp(3rem,7vw,4.5rem) 0;border-top:1px solid var(--line)}
+.two{display:grid;gap:clamp(1.5rem,5vw,3.5rem);grid-template-columns:1fr}
+@media (min-width:52rem){.two{grid-template-columns:minmax(0,18rem) minmax(0,1fr);align-items:start}}
 .steps{list-style:none;margin:0;padding:0;display:grid;gap:1.5rem;counter-reset:s}
 .steps li{padding-left:2.5rem;position:relative;color:var(--dim)}
 .steps li::before{
   counter-increment:s;content:counter(s);position:absolute;left:0;top:.1rem;
   font-family:var(--mono);font-size:.6875rem;font-weight:600;color:var(--faint);
-  width:1.5rem;height:1.5rem;border:1px solid var(--line);border-radius:50%;
-  display:grid;place-items:center;
+  width:1.5rem;height:1.5rem;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;
 }
 .steps strong{color:var(--text);font-weight:600}
 .warn{
@@ -203,20 +197,16 @@ section{padding:clamp(3rem,7vw,4.5rem) 0;border-top:1px solid var(--line)}
   border:1px solid var(--line);border-left:2px solid var(--chat);border-radius:0 10px 10px 0;
 }
 .warn p{margin:0;font-size:.9375rem}
-
 .keys{width:100%;border-collapse:collapse;font-size:.9375rem}
 .keys th{
-  text-align:left;font-family:var(--mono);font-size:.6875rem;font-weight:600;
-  letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
-  padding:0 0 .75rem;border-bottom:1px solid var(--line);
+  text-align:left;font-family:var(--mono);font-size:.6875rem;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--faint);padding:0 0 .75rem;border-bottom:1px solid var(--line);
 }
 .keys td{padding:.7rem 0;border-bottom:1px solid var(--line);color:var(--dim)}
 .keys kbd{
-  font-family:var(--mono);font-size:.75rem;color:var(--text);
-  background:var(--raise);border:1px solid var(--line);
-  border-radius:5px;padding:.2rem .45rem;white-space:nowrap;
+  font-family:var(--mono);font-size:.75rem;color:var(--text);background:#1C1E22;
+  border:1px solid var(--line);border-radius:5px;padding:.2rem .45rem;white-space:nowrap;
 }
-
 footer{border-top:1px solid var(--line);padding:2.5rem 0 3.5rem}
 footer p{font-size:.875rem;max-width:56ch}
 footer a{color:var(--dim)}
@@ -236,68 +226,92 @@ footer a:hover{color:var(--text)}
 <main>
 <div class="wrap">
   <div class="hero">
-    <h1>One dial. Your <i>game</i> on one side, your <b>friends</b> on the other.</h1>
-    <p class="lede">
-      Drag toward Game and voice chat fades down. Drag toward Chat and the game does.
-      No virtual audio driver, no installer — a single 3&nbsp;MB program that sits in your tray.
-    </p>
-
-    <!-- Working replica of the app's dial, running the same gain math as audio.rs -->
-    <div class="rig" id="rig">
-      <!-- Opens off-centre so the meters differ on arrival: the fade is the point. -->
-      <div class="readout" id="readout" aria-live="polite" style="color:#4A89FF">Chat &nbsp;&larr;&nbsp; 35%</div>
-
-      <div class="dial" id="dial" role="slider" tabindex="0"
-           aria-label="Balance between chat and game audio"
-           aria-valuemin="-100" aria-valuemax="100" aria-valuenow="-35" aria-valuetext="Chat 35%">
-        <div class="track">
-          <div class="notch"></div>
-          <div class="knob" id="knob" style="left:32.5%;--dot:#4A89FF"></div>
-        </div>
+    <div>
+      <h1>One dial. Your <i>game</i> on one side, your <b>friends</b> on the other.</h1>
+      <p class="lede">
+        Drag toward Game and voice chat fades down. Drag toward Chat and the game does.
+        No virtual audio driver, no installer — a single 3&nbsp;MB program that sits in your tray.
+      </p>
+      <div class="cta">
+        <a class="btn" href="https://github.com/TiagoNeto93/bilano/releases/latest">Download for Windows</a>
+        <span class="spec">Free &middot; 3 MB &middot; Windows 10/11 64-bit</span>
       </div>
-
-      <div class="ends"><span class="c">Chat</span><span class="g">Game</span></div>
-
-      <!-- Built by JS. The arrow column is the full chain from audio.rs,
-           taper(group_level) x trim x (muted ? 0 : 1) — shown as a percent
-           because that is the only unit the app itself uses. -->
-      <div class="rows" id="rows"></div>
-
-      <p class="note">The arrow is what each app ends up playing at. Bilano doesn't
-        show you that number — you just hear it. A web page can't turn your game down.</p>
-
-      <p class="hint" id="hint">Drag the dial, a slider, or tap a chip</p>
     </div>
 
-    <div class="cta">
-      <a class="btn" href="https://github.com/TiagoNeto93/bilano/releases/latest">Download for Windows</a>
-      <span class="spec">Free &middot; 3 MB &middot; Windows 10/11 64-bit</span>
+    <div>
+      <!-- A working replica of the real window. Everything here does what it
+           does in the app; the list re-sections live when you change a group. -->
+      <div class="app" id="app">
+        <div class="chrome">
+          <span class="ic"></span><span class="t">Bilano</span>
+          <span class="btns" aria-hidden="true"><i>&minus;</i><i>&#9633;</i><i>&times;</i></span>
+        </div>
+
+        <div class="body">
+          <div class="ahead">
+            <div class="icon"><s></s></div>
+            <div>
+              <h3>Bilano</h3>
+              <p>game &harr; voice balance</p>
+            </div>
+          </div>
+
+          <div class="readout" id="readout">Chat &nbsp;&larr;&nbsp; 35%</div>
+
+          <div class="dial" id="dial" role="slider" tabindex="0"
+               aria-label="Balance between chat and game audio"
+               aria-valuemin="-100" aria-valuemax="100" aria-valuenow="-35" aria-valuetext="Chat 35%">
+            <div class="track"><div class="notch"></div><div class="knob" id="knob" style="left:32.5%;--dot:#4A89FF"></div></div>
+          </div>
+
+          <div class="ends"><span class="c">Chat</span><span class="g">Game</span></div>
+
+          <div class="nudge">
+            <button data-nudge="-1">&#9664; Chat</button>
+            <button data-nudge="0">Center</button>
+            <button data-nudge="1">Game &#9654;</button>
+          </div>
+          <p class="hint1">Ctrl+Alt+&larr;&nbsp; Chat &nbsp; &middot; &nbsp; Ctrl+Alt+&rarr;&nbsp; Game &nbsp; &middot; &nbsp; Ctrl+Alt+&darr;&nbsp; Center</p>
+          <p class="hint2">slider = per-app volume &middot; M = mute &middot; click a chip to switch group</p>
+
+          <div id="list"></div>
+        </div>
+
+      </div>
+
+      <p class="applied">
+        <b>Not part of the app:</b> what Windows is applying right now —
+        <code id="applied">discord.exe 100% · apexlegends.exe 17% · spotify.exe 0%</code>.
+        Bilano doesn't print this anywhere, because you just hear it. A web page can't
+        turn your game down, so it's spelled out here instead.
+      </p>
     </div>
   </div>
 </div>
 
 <section>
   <div class="wrap two">
-    <img class="shot" src="screenshot.png" width="421" height="826"
-         alt="The Bilano window: a blue-to-green gradient dial reading Chat 35%, above Chat and Game sections listing apps with individual volume sliders and mute buttons.">
+    <div><p class="eyebrow">What it does</p></div>
     <div>
-      <p class="eyebrow">What it does</p>
       <h2>It turns other apps down, so you don't have to.</h2>
       <p>
-        Windows already gives every app its own volume — the sliders you'd find in the Volume Mixer.
-        Bilano just moves them for you. Tag Discord and anything else you talk on as <strong>Chat</strong>;
-        everything else counts as <strong>Game</strong>. One dial then fades whichever side you're
-        turning away from.
+        Windows already gives every app its own volume — the sliders you'd find in the Volume
+        Mixer. Bilano just moves them for you. Tag Discord and anything else you talk on as
+        <strong>Chat</strong>; everything else counts as <strong>Game</strong>. One dial then
+        fades whichever side you're turning away from, and the list re-sorts itself so you can
+        always see which app is in which group.
       </p>
       <p>
-        The fade is measured in decibels rather than percent, so the second half of the dial doesn't
-        fall off a cliff — moving it feels the same at either end. Each app also gets its own volume
-        slider and a mute button, and every one of them is put back to full when you quit.
+        The fade is measured in decibels rather than percent, so the second half of the dial
+        doesn't fall off a cliff — moving it feels the same at either end. Each app also gets
+        its own volume slider and a mute button, and every one of them is put back to full when
+        you quit.
       </p>
       <p>
-        Because it's only moving volumes, there's no virtual sound card to install and nothing left
-        running when it's closed. That's the whole trade: it can't route audio to separate devices
-        the way a driver can, but for balancing a game against a voice call it sounds the same.
+        Because it's only moving volumes, there's no virtual sound card to install and nothing
+        left running when it's closed. That's the whole trade: it can't route audio to separate
+        devices the way a driver can, but for balancing a game against a voice call it sounds
+        the same.
       </p>
     </div>
   </div>
@@ -305,10 +319,7 @@ footer a:hover{color:var(--text)}
 
 <section>
   <div class="wrap two">
-    <div>
-      <p class="eyebrow">Install</p>
-      <h2>Three steps, one of them annoying.</h2>
-    </div>
+    <div><p class="eyebrow">Install</p><h2>Three steps, one of them annoying.</h2></div>
     <div>
       <ol class="steps">
         <li><strong>Download the zip</strong> from the releases page and unzip it wherever you like.</li>
@@ -317,10 +328,10 @@ footer a:hover{color:var(--text)}
       </ol>
       <div class="warn">
         <p>
-          <strong>Windows will warn you the first time.</strong> Bilano isn't code-signed — a certificate
-          costs more per year than this project will ever make — so SmartScreen says
-          "Windows protected your PC". Choose <strong>More info &rarr; Run anyway</strong>. Some antivirus
-          software flags unsigned programs too; if yours quarantines it, allow the folder.
+          <strong>Windows will warn you the first time.</strong> Bilano isn't code-signed — a
+          certificate costs more per year than this project will ever make — so SmartScreen says
+          "Windows protected your PC". Choose <strong>More info &rarr; Run anyway</strong>. Some
+          antivirus software flags unsigned programs too; if yours quarantines it, allow the folder.
         </p>
       </div>
     </div>
@@ -351,8 +362,8 @@ footer a:hover{color:var(--text)}
 <footer>
   <div class="wrap">
     <p>
-      Bilano is named after <em>bilanx</em>, the Latin for "two scale-pans" and the root of the word
-      <em>balance</em>: one beam, a pan on each side. It's free and
+      Bilano is named after <em>bilanx</em>, the Latin for "two scale-pans" and the root of the
+      word <em>balance</em>: one beam, a pan on each side. It's free and
       <a href="https://github.com/TiagoNeto93/bilano">open source</a> under the MIT license —
       use it, fork it, ship it.
     </p>
@@ -366,148 +377,145 @@ footer a:hover{color:var(--text)}
 
 <script>
 (function () {
-  // Mirrors src/audio.rs: group_level() + the dB taper, MIN_DB = -40.
-  var MIN_DB = -40;
-  var mix = -0.35; // -1 = all Chat, +1 = all Game; opens off-centre to show the fade
+  // Mirrors src/audio.rs and src/main.rs.
+  var MIN_DB = -40, STEP = 0.1;
+  var mix = -0.35;
 
-  var rig = document.getElementById('rig');
-  var dial = document.getElementById('dial');
-  var knob = document.getElementById('knob');
-  var readout = document.getElementById('readout');
-  var rowsEl = document.getElementById('rows');
-
-  // A plausible setup, not anyone's real one.
   var apps = [
-    { exe: 'discord.exe',     chat: true,  trim: 1.00, muted: false, live: true  },
-    { exe: 'apexlegends.exe', chat: false, trim: 0.85, muted: false, live: true  },
-    { exe: 'spotify.exe',     chat: false, trim: 0.45, muted: true,  live: false }
+    { exe: 'discord.exe',      chat: true,  trim: 1.00, muted: false, live: true  },
+    { exe: 'teamspeak.exe',    chat: true,  trim: 1.00, muted: false, live: false },
+    { exe: 'apexlegends.exe',  chat: false, trim: 0.90, muted: false, live: true  },
+    { exe: 'baldursgate3.exe', chat: false, trim: 0.55, muted: true,  live: false },
+    { exe: 'spotify.exe',      chat: false, trim: 0.45, muted: false, live: true  }
   ];
 
-  function level(m, group) {
-    var v = group === 'game' ? 1 + m : 1 - m;
-    return Math.min(1, Math.max(0, v));
-  }
+  var dial = document.getElementById('dial'), knob = document.getElementById('knob');
+  var readout = document.getElementById('readout'), list = document.getElementById('list');
+  var applied = document.getElementById('applied');
+
+  function level(m, chat) { return Math.min(1, Math.max(0, chat ? 1 - m : 1 + m)); }
   function taper(lv) {
     if (lv <= 0.001) return 0;
     if (lv >= 0.999) return 1;
     return Math.pow(10, (MIN_DB * (1 - lv)) / 20);
   }
-  function effective(app) {              // the chain from audio.rs
-    if (app.muted) return 0;
-    return taper(level(mix, app.chat ? 'chat' : 'game')) * app.trim;
+  function effective(a) { return a.muted ? 0 : taper(level(mix, a.chat)) * a.trim; }
+
+  function setMix(v) {
+    v = Math.min(1, Math.max(-1, v));
+    if (Math.abs(v) < 0.04) v = 0;   // the app snaps to centre too
+    mix = v; render();
   }
 
-  function buildRows() {
-    apps.forEach(function (app, n) {
-      var row = document.createElement('div');
-      row.className = 'row';
-      row.innerHTML =
-        '<div class="rline">' +
-          '<span class="dot' + (app.live ? '' : ' idle') + '"></span>' +
-          '<span class="exe">' + app.exe + '</span>' +
-          '<button class="chip" data-chip="' + n + '"></button>' +
-        '</div>' +
-        '<div class="rline">' +
-          '<button class="mute" data-mute="' + n + '">M</button>' +
-          '<span class="trim" data-trim="' + n + '"><s></s><i></i><b></b></span>' +
-          '<span class="pct"></span><span class="out"></span>' +
-        '</div>';
-      rowsEl.appendChild(row);
-      app.el = row;
-    });
-
-    rowsEl.addEventListener('click', function (e) {
-      var c = e.target.closest('[data-chip]'), m = e.target.closest('[data-mute]');
-      if (c) { apps[+c.dataset.chip].chat = !apps[+c.dataset.chip].chat; touch(); }
-      if (m) { apps[+m.dataset.mute].muted = !apps[+m.dataset.mute].muted; touch(); }
-    });
-
-    rowsEl.querySelectorAll('[data-trim]').forEach(function (t) {
-      var app = apps[+t.dataset.trim], down = false;
-      function set(x) {
-        var r = t.getBoundingClientRect();
-        app.trim = Math.min(1, Math.max(0, (x - r.left) / r.width));
-        touch();
-      }
-      t.addEventListener('pointerdown', function (e) { down = true; t.setPointerCapture(e.pointerId); set(e.clientX); });
-      t.addEventListener('pointermove', function (e) { if (down) set(e.clientX); });
-      t.addEventListener('pointerup',     function () { down = false; });
-      t.addEventListener('pointercancel', function () { down = false; });
-    });
+  function rowHTML(a, i) {
+    return '<div class="row">' +
+      '<div class="rline">' +
+        '<span class="dot' + (a.live ? '' : ' idle') + '"></span>' +
+        '<span class="exe">' + a.exe + '</span>' +
+        '<button class="chip ' + (a.chat ? 'isChat' : 'isGame') + '" data-chip="' + i + '" ' +
+          'title="Move to ' + (a.chat ? 'Game' : 'Chat') + '">' + (a.chat ? 'CHAT' : 'GAME') + '</button>' +
+      '</div>' +
+      '<div class="rline">' +
+        '<button class="mute' + (a.muted ? ' on' : '') + '" data-mute="' + i + '" ' +
+          'title="' + (a.muted ? 'Un-mute' : 'Mute') + '">M</button>' +
+        '<span class="trim" data-trim="' + i + '"><s></s>' +
+          '<i style="width:' + (a.trim * 100) + '%;background:' +
+            (a.muted ? '#5A5A5A' : (a.chat ? '#4A89FF' : '#34CD82')) + '"></i>' +
+          '<b style="left:' + (a.trim * 100) + '%"></b></span>' +
+        '<span class="pct">' + Math.round(a.trim * 100) + '%</span>' +
+      '</div>' +
+    '</div>';
   }
 
-  function touch() { rig.classList.add('touched'); render(); }
+  function section(title, cls, members) {
+    var h = '<div class="group"><div class="sec"><b class="' + cls + '">' + title + '</b>' +
+            '<span>&middot; ' + members.length + '</span></div>';
+    h += members.length
+      ? members.map(function (m) { return rowHTML(m.a, m.i); }).join('')
+      : '<p class="none">&mdash; none &mdash;</p>';
+    return h + '</div>';
+  }
 
   function render() {
     var pct = Math.round(mix * 100);
     knob.style.left = ((mix * 0.5 + 0.5) * 100) + '%';
 
     var label, accent;
-    if (pct === 0)      { label = 'Balanced';                 accent = '#9AA0AA'; }
-    else if (pct > 0)   { label = pct + '%  →  Game';         accent = '#34CD82'; }
-    else                { label = 'Chat  ←  ' + (-pct) + '%'; accent = '#4A89FF'; }
-
+    if (pct === 0)    { label = 'Balanced';                 accent = '#C8C8C8'; }
+    else if (pct > 0) { label = pct + '%  →  Game';         accent = '#34CD82'; }
+    else              { label = 'Chat  ←  ' + (-pct) + '%'; accent = '#4A89FF'; }
     readout.textContent = label;
     readout.style.color = accent;
     knob.style.setProperty('--dot', accent);
-
-    apps.forEach(function (app) {
-      var col = app.chat ? '#4A89FF' : '#34CD82';
-      var chip = app.el.querySelector('.chip');
-      chip.textContent = app.chat ? 'CHAT' : 'GAME';
-      chip.className = 'chip ' + (app.chat ? 'isChat' : 'isGame');
-      chip.title = 'Move to ' + (app.chat ? 'Game' : 'Chat');
-
-      var mute = app.el.querySelector('.mute');
-      mute.className = 'mute' + (app.muted ? ' on' : '');
-      mute.title = app.muted ? 'Un-mute' : 'Mute';
-
-      app.el.querySelector('.trim i').style.width = (app.trim * 100) + '%';
-      app.el.querySelector('.trim i').style.background = app.muted ? '#5A5A5A' : col;
-      app.el.querySelector('.trim b').style.left = (app.trim * 100) + '%';
-      app.el.querySelector('.pct').textContent = Math.round(app.trim * 100) + '%';
-      app.el.querySelector('.out').textContent = '→ ' + Math.round(effective(app) * 100) + '%';
-    });
-
     dial.setAttribute('aria-valuenow', pct);
     dial.setAttribute('aria-valuetext', label);
+
+    // Re-derived every render, exactly like the app: re-tagging moves an app
+    // between sections and keeps its trim and mute.
+    var chat = [], game = [];
+    apps.forEach(function (a, i) { (a.chat ? chat : game).push({ a: a, i: i }); });
+    list.innerHTML = section('CHAT', 'c', chat) + section('GAME', 'g', game);
+
+    applied.textContent = apps.map(function (a) {
+      return a.exe + ' ' + Math.round(effective(a) * 100) + '%';
+    }).join(' · ');
   }
 
-  function setMix(v) {
-    v = Math.min(1, Math.max(-1, v));
-    if (Math.abs(v) < 0.04) v = 0; // the app snaps to centre too
-    mix = v;
-    render();
-  }
-
-  function fromPointer(clientX) {
+  // --- the dial ---
+  function fromPointer(x) {
     var r = dial.getBoundingClientRect();
-    setMix(((clientX - r.left) / r.width) * 2 - 1);
-    rig.classList.add('touched');
+    setMix(((x - r.left) / r.width) * 2 - 1);
   }
-
   var dragging = false;
-  dial.addEventListener('pointerdown', function (e) {
-    dragging = true;
-    dial.setPointerCapture(e.pointerId);
-    fromPointer(e.clientX);
-  });
+  dial.addEventListener('pointerdown', function (e) { dragging = true; dial.setPointerCapture(e.pointerId); fromPointer(e.clientX); });
   dial.addEventListener('pointermove', function (e) { if (dragging) fromPointer(e.clientX); });
   dial.addEventListener('pointerup',     function () { dragging = false; });
   dial.addEventListener('pointercancel', function () { dragging = false; });
-
   dial.addEventListener('keydown', function (e) {
-    var step = 0.1, handled = true;
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown')       setMix(mix - step);
-    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp')   setMix(mix + step);
-    else if (e.key === 'Home')                                setMix(-1);
-    else if (e.key === 'End')                                 setMix(1);
-    else if (e.key === ' ' || e.key === 'Enter')              setMix(0);
+    var handled = true;
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowDown') setMix(mix - STEP);
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') setMix(mix + STEP);
+    else if (e.key === 'Home') setMix(-1);
+    else if (e.key === 'End')  setMix(1);
+    else if (e.key === ' ' || e.key === 'Enter') setMix(0);
     else handled = false;
-    if (handled) { e.preventDefault(); rig.classList.add('touched'); }
+    if (handled) e.preventDefault();
   });
 
-  buildRows();
+  // --- the three nudge buttons ---
+  document.querySelectorAll('[data-nudge]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var d = +b.dataset.nudge;
+      setMix(d === 0 ? 0 : mix + d * STEP);
+    });
+  });
+
+  // --- rows (delegated: the list is rebuilt on every render) ---
+  list.addEventListener('click', function (e) {
+    var c = e.target.closest('[data-chip]'), m = e.target.closest('[data-mute]');
+    if (c) { apps[+c.dataset.chip].chat = !apps[+c.dataset.chip].chat; render(); }
+    if (m) { apps[+m.dataset.mute].muted = !apps[+m.dataset.mute].muted; render(); }
+  });
+
+  var trimming = null;
+  function trimTo(el, x) {
+    var a = apps[+el.dataset.trim], r = el.getBoundingClientRect();
+    a.trim = Math.min(1, Math.max(0, (x - r.left) / r.width));
+    render();
+  }
+  list.addEventListener('pointerdown', function (e) {
+    var t = e.target.closest('[data-trim]');
+    if (!t) return;
+    trimming = +t.dataset.trim;
+    trimTo(t, e.clientX);
+  });
+  window.addEventListener('pointermove', function (e) {
+    if (trimming === null) return;
+    var t = list.querySelector('[data-trim="' + trimming + '"]');
+    if (t) trimTo(t, e.clientX);
+  });
+  window.addEventListener('pointerup', function () { trimming = null; });
+
   render();
 })();
 </script>
