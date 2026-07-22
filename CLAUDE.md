@@ -231,8 +231,29 @@ When a check disagrees with expectations, suspect the check first.
   npm install playwright --prefix <scratch-dir>
   # then: chromium.launch({ channel: 'chrome' })
   #       browser.newPage({ viewport: { width: 390, height: 900 } })
-  # assert: document.documentElement.scrollWidth <= window.innerWidth
   ```
+
+  The suite is deliberately **not** in the repo (page tests are personal tooling here, like
+  `scripts/`). Recreate it from this checklist — each line is something that actually broke
+  or was actually lost during v2.0:
+
+  - `document.documentElement.scrollWidth <= innerWidth` at 360 / 390 / 768 / 1280.
+  - The list splits into `CHAT · n` / `GAME · n`, and clicking a row's chip **moves the app
+    to the other section, keeps its trim and mute, and updates both counts**. This is the
+    central behaviour and it went missing once already.
+  - Mute drives that app's applied output to 0; un-mute restores it; a trim drag changes it.
+  - The dial: drag, the three nudge buttons, keyboard, and the snap to centre inside ±0.04.
+  - **No `dB` anywhere inside `#app`** — the app speaks only in percent, and a decibel
+    readout crept into the replica once.
+  - No footer strings (`Add app`, `Start with Windows`, `Quit`) — deliberately out of scope.
+  - Every `section .two` keeps its eyebrow *and* `h2` in the first column.
+  - `#dial` has `role="slider"`, a live `aria-valuenow`, and `tabIndex === 0`.
+
+  Two traps when writing it:
+  - **Address rows by app name, not `:nth-child`.** The section header is the group's first
+    child, so `.row:nth-child(1)` matches nothing and the test hangs for 30s.
+  - **Test against the deployed URL for anything network-related.** The GoatCounter tag uses
+    a protocol-relative `src`, which resolves to `file://` locally and never fires.
 - **A running instance transiently locks files in `dist/`** — writes fail with
   EPERM/Access-denied, and it once aborted a `git checkout` with "Invalid argument".
   `Stop-Process -Name bilano` before touching `dist/`, not just before rebuilding.
