@@ -1,6 +1,6 @@
 [package]
 name = "bilano"
-version = "2.0.1"
+version = "2.0.2"
 edition = "2021"
 description = "Balance game audio against voice chat on Windows with one dial. No drivers, no installer."
 license = "MIT"

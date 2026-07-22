@@ -6,13 +6,20 @@ download — what changed for them, not which commits landed.
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-07-22
+
 ### Added
 
-- `bilano.exe` now carries its version, so Explorer's Details tab and
-  `(Get-Item bilano.exe).VersionInfo` report it. Previously the file claimed no
-  version at all.
-- The version is shown in the app header and the tray tooltip, so "which version
-  are you on?" is answerable without hunting for the zip you downloaded.
+- **You can now tell which version you're running.** It's shown in the app header
+  and the tray tooltip, and `bilano.exe` itself reports it to Explorer's Details
+  tab and `(Get-Item bilano.exe).VersionInfo`. Previously the file claimed no
+  version at all, which made "which version are you on?" annoyingly hard to
+  answer — including on the bug report form, which has to ask.
+
+### Changed
+
+- Releases now come with a description of what actually changed, rather than a
+  bare link to the commit list.
 
 ## [2.0.1] - 2026-07-22
 
@@ -83,7 +90,8 @@ Two things to do by hand:
 1.4.1 and before predate the public repository: the balance dial itself, global
 hotkeys, the tray icon, and "Start with Windows".
 
-[Unreleased]: https://github.com/TiagoNeto93/bilano/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/TiagoNeto93/bilano/compare/v2.0.2...HEAD
+[2.0.2]: https://github.com/TiagoNeto93/bilano/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/TiagoNeto93/bilano/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/TiagoNeto93/bilano/compare/v1.7.0...v2.0.0
 [1.7.0]: https://github.com/TiagoNeto93/bilano/compare/v1.6.0...v1.7.0
