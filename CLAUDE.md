@@ -184,7 +184,20 @@ and publishes `SHA256SUMS.txt` beside the zip (the exe is unsigned — see `SECU
 **Release descriptions come from `CHANGELOG.md`.** `release.yml` extracts the
 `## [X.Y.Z]` section for the tag and appends a standard install/verify footer; with
 no matching section it falls back to `--generate-notes` (a bare compare link) rather
-than failing. So: **add the section before tagging.** Two traps baked into that step —
+than failing. So: **add the section before tagging.**
+
+Forgetting is caught before it can happen: **`.githooks/pre-push` refuses to push a
+`vX.Y.Z` tag** unless `CHANGELOG.md` has that section *and* `Cargo.toml` is on that
+version. It leaves branch pushes and tag deletions alone. The workflow keeps its
+graceful fallback deliberately — the hook prevents the bad push, so failing the build
+would only ever strand a tag with no release. A fresh clone needs the hook wired up
+once (hooks aren't cloned):
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+Two traps baked into the notes step —
 read the file with `Get-Content -Encoding UTF8` (Windows PowerShell would mangle every
 dash), and no here-strings, since a closing `'@` can't sit at column 0 inside a YAML
 block scalar.

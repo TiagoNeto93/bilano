@@ -1,0 +1,52 @@
+#!/bin/sh
+# Refuse to push a version tag that isn't ready to be released.
+#
+# Two things silently produce a bad release if forgotten, and both are cheap to
+# check here rather than after the fact:
+#
+#   1. No "## [X.Y.Z]" section in CHANGELOG.md - the Release workflow falls back
+#      to auto-generated notes, i.e. the bare compare link.
+#   2. Cargo.toml still on the old version - the published exe then reports a
+#      version that doesn't match its own tag.
+#
+# Git runs this from the top of the working tree, with the refs being pushed on
+# stdin: "<local ref> <local sha> <remote ref> <remote sha>".
+
+zero='0000000000000000000000000000000000000000'
+status=0
+
+while read -r local_ref local_sha _remote_ref _remote_sha; do
+    # Tag deletions have no local object; nothing to validate.
+    [ "$local_sha" = "$zero" ] && continue
+
+    case "$local_ref" in
+        refs/tags/v*) ;;
+        *) continue ;;
+    esac
+
+    tag=${local_ref#refs/tags/}
+    ver=${tag#v}
+
+    if ! grep -qF "## [$ver]" CHANGELOG.md 2>/dev/null; then
+        echo "pre-push: CHANGELOG.md has no '## [$ver]' section." >&2
+        echo "          $tag would be published with just a compare link as its description." >&2
+        status=1
+    fi
+
+    cargo_ver=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml 2>/dev/null | head -1)
+    if [ "$cargo_ver" != "$ver" ]; then
+        echo "pre-push: Cargo.toml is $cargo_ver but the tag is $ver." >&2
+        echo "          The released exe would report the wrong version." >&2
+        status=1
+    fi
+done
+
+if [ "$status" -ne 0 ]; then
+    echo "" >&2
+    echo "Nothing was pushed. Fix the above, then move the tag:" >&2
+    echo "    git tag -d <tag> && git tag -a <tag> -m <msg> && git push origin <tag>" >&2
+    echo "" >&2
+    echo "To push anyway (you will get poor release notes): git push --no-verify" >&2
+fi
+
+exit $status
