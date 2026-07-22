@@ -38,6 +38,9 @@ browser before you download anything.
 
 Requires 64-bit Windows 10/11. Nothing else to install.
 
+Each release also publishes `SHA256SUMS.txt` so you can check what you downloaded.
+See the [changelog](CHANGELOG.md) for what changed between versions.
+
 ## Usage
 
 - **Drag the slider** toward **Game** to fade voice chat down, toward **Chat** to fade
